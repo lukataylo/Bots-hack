@@ -29,15 +29,20 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
   const scale = botScale(profile.weight_kg);
   const parts = useMemo(() => buildParts(profile.weapon_class, scale), [profile.weapon_class, scale]);
 
+  // Real livery when the scrape found one: chassis wears the bot's actual dominant color,
+  // weapon its secondary. Team accent stays on trim/glow so sides remain readable.
+  const chassisColor = profile.palette?.primary ?? "#454e60";
+  const weaponColor = profile.palette?.accent ?? "#59637a";
+
   const metalMat = useMemo(
     () => new THREE.MeshStandardMaterial({
-      color: "#454e60",
+      color: chassisColor,
       metalness: 0.7,
       roughness: 0.35,
       emissive: accent,
       emissiveIntensity: 0.12,
     }),
-    [accent],
+    [accent, chassisColor],
   );
   const accentMat = useMemo(
     () =>
@@ -53,13 +58,13 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
   const weaponMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#59637a",
+        color: weaponColor,
         metalness: 0.85,
         roughness: 0.22,
         emissive: accent,
         emissiveIntensity: 0.8,
       }),
-    [accent],
+    [accent, weaponColor],
   );
   const matFor = (kind: MatKind) => (kind === "metal" ? metalMat : kind === "accent" ? accentMat : weaponMat);
 

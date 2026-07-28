@@ -33,9 +33,19 @@ function BotBody({ profile, accent }: { profile: FighterProfile; accent: string 
   const scale = botScale(profile.weight_kg);
   const parts = useMemo(() => buildParts(profile.weapon_class, scale), [profile.weapon_class, scale]);
 
+  // Real livery when scraped (profile.palette), else readable bright defaults.
+  const chassisColor = profile.palette?.primary ?? "#454e60";
+  const weaponColor = profile.palette?.accent ?? "#59637a";
+
   const metalMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#1b1f27", metalness: 0.75, roughness: 0.38 }),
-    [],
+    () => new THREE.MeshStandardMaterial({
+      color: chassisColor,
+      metalness: 0.7,
+      roughness: 0.35,
+      emissive: accent,
+      emissiveIntensity: 0.12,
+    }),
+    [accent, chassisColor],
   );
   const accentMat = useMemo(
     () =>
@@ -51,13 +61,13 @@ function BotBody({ profile, accent }: { profile: FighterProfile; accent: string 
   const weaponMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#2a2f3a",
+        color: weaponColor,
         metalness: 0.85,
         roughness: 0.22,
         emissive: accent,
         emissiveIntensity: 0.55,
       }),
-    [accent],
+    [accent, weaponColor],
   );
   const matFor = (kind: MatKind) => (kind === "metal" ? metalMat : kind === "accent" ? accentMat : weaponMat);
 

@@ -123,6 +123,10 @@ export async function resolveAndFuse(name: string, onStep: (s: TraceStep) => voi
     `weapon=${weaponClass} weight=${weightKg ?? 'unknown'}kg record=${wins}-${losses} ko_wins=${koWins}`,
   );
 
+  // Real appearance: lead photo + dominant livery colors (fail-soft, nulls when absent).
+  const { fetchBotAppearance } = await import('./botimage');
+  const appearance = await fetchBotAppearance(fandomPage.title, onStep);
+
   return {
     name: fandomPage.title,
     weapon_class: weaponClass,
@@ -132,6 +136,8 @@ export async function resolveAndFuse(name: string, onStep: (s: TraceStep) => voi
     ko_wins: koWins,
     failure_pattern: failurePattern,
     source_urls: [fandomPage.url, ...(wikiPage ? [wikiPage.url] : [])],
+    photo_url: appearance.photo_url,
+    palette: appearance.palette,
   };
 }
 
