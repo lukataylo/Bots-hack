@@ -137,7 +137,21 @@ export default function ShowMode(props: ShowModeProps) {
 
   // Auto-advance whenever the pipeline reaches a new milestone. A manual arrow-key
   // move sticks until the next real milestone change (maxIndex value changes).
+  // The reveal stage (index 1) holds for a minimum dwell so pre-warmed instant scouts
+  // still get their "scrape becomes a body" moment before the fight takes over.
+  const REVEAL_DWELL_MS = 9000;
+  const revealEnteredAt = useRef<number | null>(null);
   useEffect(() => {
+    if (maxIndex >= 1 && revealEnteredAt.current === null) revealEnteredAt.current = Date.now();
+    if (maxIndex === 0) revealEnteredAt.current = null;
+    if (maxIndex >= 2 && revealEnteredAt.current !== null) {
+      const elapsed = Date.now() - revealEnteredAt.current;
+      if (elapsed < REVEAL_DWELL_MS) {
+        setStageIndex(1);
+        const t = setTimeout(() => setStageIndex(maxIndex), REVEAL_DWELL_MS - elapsed);
+        return () => clearTimeout(t);
+      }
+    }
     setStageIndex(maxIndex);
   }, [maxIndex]);
 
