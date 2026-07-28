@@ -16,10 +16,23 @@ function seedFromMatchup(m: Matchup): number {
 }
 
 export default function LukaFight({ matchup }: { matchup: Matchup }) {
-  const recording = useMemo(
-    () => simulateBout(specFor(matchup.fighterA), specFor(matchup.fighterB), seedFromMatchup(matchup), true),
-    [matchup],
-  );
+  const recording = useMemo(() => {
+    const specA = specFor(matchup.fighterA);
+    const specB = specFor(matchup.fighterB);
+    const base = seedFromMatchup(matchup);
+    // Deterministic representative bout: walk 16 hash-derived seeds and keep the most
+    // watchable one (real fight arc over fluke instant-KO). Same matchup, same bout, always.
+    let best = simulateBout(specA, specB, base, true);
+    let bestScore = -Infinity;
+    for (let i = 0; i < 16; i += 1) {
+      const r = simulateBout(specA, specB, (base + i * 0x9e3779b9) >>> 0, true);
+      const dur = r.durationSec;
+      const durScore = dur >= 15 && dur <= 75 ? 100 : dur < 15 ? dur * 4 : 100 - (dur - 75);
+      const score = durScore + r.hits.length;
+      if (score > bestScore) { bestScore = score; best = r; }
+    }
+    return best;
+  }, [matchup]);
   const [tick, setTick] = useState<Tick | null>(null);
   const [ended, setEnded] = useState(false);
   const [runKey, setRunKey] = useState(0);
