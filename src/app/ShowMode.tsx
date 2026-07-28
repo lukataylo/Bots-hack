@@ -7,9 +7,22 @@ import CountUp from "react-countup";
 import type { FighterProfile, Matchup, SettlementResult, TraceStep } from "@/lib/types";
 import type { MarqueeScript } from "@/three/types";
 
+// Real footage keyed by fighter pair (order-insensitive). Falls back to null (no embed).
+const FOOTAGE: Record<string, string> = {
+  "ripperoni|tombstone": "cRyghAsC_3Y",
+  "mad catter|tombstone": "_GPZAhE0rLM",
+  "end game|ripperoni": "Iaii-XUxqqU",
+  "black dragon|ripperoni": "3JCKZpFO9zY",
+};
+function footageFor(m: { fighterA: { name: string }; fighterB: { name: string } }): string | null {
+  const key = [m.fighterA.name.toLowerCase(), m.fighterB.name.toLowerCase()].sort().join("|");
+  return FOOTAGE[key] ?? null;
+}
+
 const photoSrc = (url: string | null | undefined, fallback: string) => url ? `/api/photo?u=${encodeURIComponent(url)}` : fallback;
 
 const LukaFight = dynamic(() => import("./LukaFight"), { ssr: false });
+const RevealBot = dynamic(() => import("./RevealBot"), { ssr: false });
 const BotAssembly = dynamic(() => import("@/three").then((m) => m.BotAssembly), { ssr: false });
 const Canvas = dynamic(() => import("@react-three/fiber").then((m) => m.Canvas), { ssr: false });
 
@@ -214,11 +227,7 @@ export default function ShowMode(props: ShowModeProps) {
           <div className="show-rig-row">
             <div className="show-rig-cell">
               <div className="plate plate-blue show-rig-canvas">
-                <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
-                  <ambientLight intensity={0.7} />
-                  <directionalLight position={[2, 4, 3]} intensity={1.2} />
-                  <BotAssembly profile={matchup?.fighterA ?? placeholderProfile(fighterAName)} accent="#3D7BFF" assembling />
-                </Canvas>
+                <RevealBot profile={matchup?.fighterA ?? placeholderProfile(fighterAName)} accent="#3D7BFF" />
               </div>
               {matchup?.fighterA.photo_url && (
                 <img className="show-rig-photo" src={photoSrc(matchup.fighterA.photo_url, "/assets/bot-blue.png")} alt="" />
@@ -227,11 +236,7 @@ export default function ShowMode(props: ShowModeProps) {
             </div>
             <div className="show-rig-cell">
               <div className="plate plate-purple show-rig-canvas">
-                <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
-                  <ambientLight intensity={0.7} />
-                  <directionalLight position={[2, 4, 3]} intensity={1.2} />
-                  <BotAssembly profile={matchup?.fighterB ?? placeholderProfile(fighterBName)} accent="#9B4DFF" assembling />
-                </Canvas>
+                <RevealBot profile={matchup?.fighterB ?? placeholderProfile(fighterBName)} accent="#9B4DFF" />
               </div>
               {matchup?.fighterB.photo_url && (
                 <img className="show-rig-photo" src={photoSrc(matchup.fighterB.photo_url, "/assets/bot-purple.png")} alt="" />
@@ -333,6 +338,17 @@ export default function ShowMode(props: ShowModeProps) {
       {stage === "grade" && matchup && (
         <div className="show-scene show-fade">
           <div className="show-kicker">REALITY GRADES THE MACHINE</div>
+          {footageFor(matchup) && (
+            <div className="show-footage">
+              <iframe
+                src={`https://www.youtube.com/embed/${footageFor(matchup)}`}
+                title="Real fight footage"
+                allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+              <div className="show-footage-label mono">THE REAL FOOTAGE</div>
+            </div>
+          )}
           {lastSettlement && (
             <div className={`show-grade-flash ${lastSettlement.correct ? "show-grade-correct" : "show-grade-wrong"}`}>
               {lastSettlement.correct ? "CORRECT" : "WRONG"}
