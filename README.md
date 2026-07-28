@@ -1,56 +1,60 @@
-# Scout
+# RINGSIDE ARENA
 
-Find the problem, build the wedge, message the founder.
+Name any two BattleBots. It scrapes them into existence, fights the fight 1,000 times in
+physics before it happens, posts computed odds, takes the room's bets, then the real fight
+airs and the machine settles itself in front of everyone.
 
-Scout auto-pulls target startups, scrapes signals about each (site, open roles,
-user complaints, founder, funding), and uses an LLM to produce a per-company
-**brief**: their real problems (each backed by an evidence link), the specific
-thing you could build to prove yourself, the role to pitch for, and a ready-to-send
-founder DM. Ranked by opportunity. Built to get a strong builder hired through the
-side door, not the application pile.
+Built live at BattleBots Hack Night London (Bright Data), 28 July 2026.
 
-## How it works
+## What actually happens
+
+1. **Someone shouts two fighter names.** Nothing is pre-loaded; any Pro League bot works.
+2. **The scrape becomes a body.** Live Bright Data calls hit Wikipedia and the BattleBots
+   fandom wiki (visible in the on-screen trace panel, every call receipted). The fused specs
+   assemble a parametric 3D robot on screen: the weapon archetype picks the rig, the weight
+   class scales the chassis. Data literally becomes embodiment.
+3. **Physics fights the fight before reality does.** A deterministic Rapier simulation seeded
+   from the scraped stats runs 1,000 headless bouts. One marquee bout renders in full 3D with
+   slow-mo hits. The posted line is computed by a weapon-archetype Elo engine over real fight
+   records. No LLM guesses any number, anywhere.
+4. **The room bets.** QR code, no login, play points. Lines close on a lock ritual; late bets
+   void. The prediction is sha256-hashed and git-committed BEFORE the fight, so the record
+   cannot be quietly edited.
+5. **Reality grades the machine.** The moment the real fight ends, the result is scraped and
+   the system settles itself: payouts, a public append-only Elo scar ledger, and a running
+   accuracy ticker. When the data is too thin it refuses to post a line at all: insufficient
+   evidence, bets void. An honest bookie.
+
+## Honesty mechanics (the point of the build)
+
+- **Computed, not guessed:** strip the LLM and the odds, the sim, and the settlement all
+  still work. The one LLM call is a nullable commentator sentence on top.
+- **Pre-commit:** every prediction hash is git-committed before settlement can run.
+- **Abstention:** below the sample threshold the bookie posts no line instead of a fake one.
+- **Labeled settlement:** every settled fight shows whether the result came from a live
+  scrape or an operator confirmation. The UI never claims autonomy it did not have.
+
+## Stack
+
 ```
-sources/yc.ts   pull target startups (yc-oss public JSON API, no keys)
-signals.ts      per company, gather via Beast: site+gaps, jobs, complaints, founder, funding
-lib/ai.ts       Vercel AI SDK generateObject + Zod BriefSchema (synthesis)
-pipeline/score  opportunity = problem_clarity + buildability + role_fit + heat
-lib/db.ts       SQLite store (companies + briefs), dedupe by website
-app/            dashboard (/) + brief page (/company/[id])
+src/lib/data/    live scrape + fuse (Bright Data Web Unlocker path + MediaWiki APIs)
+src/core/        weapon-archetype Elo engine + Rapier headless Monte Carlo + marquee recorder
+src/three/       parametric 3D bot assembly + marquee fight renderer (react-three-fiber)
+src/app/         big-screen console, QR bet page, lock/settle state machine (Next.js 16)
+data/            SQLite (fight records, matchups, bets, settlements, Elo ledger)
 ```
-
-- **Scraping** runs through the **Beast** HTTP API (`/search`, `/fetch`, `/extract`, `/research`).
-- **LLM** is **Groq** (`openai/gpt-oss-120b`, free + structured output), the same stack Beast
-  uses. OpenAI/Gemini are used instead only if their keys are set.
-- **Grounding:** the schema requires an `evidence_url` for every problem and the prompt omits
-  anything not in the signals, so the dashboard always shows the source to verify.
-- **No em dashes / no emojis** in generated copy (enforced post-LLM).
 
 ## Run
+
 ```bash
 bun install
-bun run dev            # dashboard at http://localhost:3000
+cp .env.example .env.local   # BRIGHTDATA_API_TOKEN, GROQ_API_KEY
+bun scripts/ingest.ts Tombstone Hydra Ripperoni   # seed real fight records
+bun run dev
 ```
-Then: **Pull YC targets** -> **Analyse next 3**. Or trigger the pipeline directly:
-```bash
-curl "http://localhost:3000/api/run?pull=10&analyze=3"
-```
-Quick integration probe (Beast + yc-oss + Groq): `bun run scripts/probe.ts`.
 
-## Config (`.env.local`, gitignored)
-| var | what |
-|---|---|
-| `BEAST_URL` | Beast API (VPS `http://100.119.35.108:8001` or local `:8001`) |
-| `BEAST_API_KEY` | Beast auth |
-| `GROQ_API_KEY` | LLM (primary) |
-| `OPENAI_API_KEY` / `GEMINI_API_KEY` | optional, used if set instead of Groq |
+Big screen: `/`. Phones: `/bet/<matchup-id>` via the on-screen QR.
 
-## Built on (OSS)
-Vercel AI SDK (`generateObject` + Zod), the yc-oss companies API for targets, and the
-fire-enrich phased-enrichment pattern. Beast is the scraper. Done > perfect.
+## Team
 
-## Honest limits
-- Briefs are only as good as the signals; obscure companies yield thinner, more inferred
-  problems (still grounded). Bigger companies with public complaints give richer briefs.
-- Founder contact is name + LinkedIn/X URL from search, not a verified email.
-- Heavy runs can throttle Beast's egress IP; analyse in small batches.
+Rassa, Luka and Andrea, with a fleet of Claude agents as the build crew.
