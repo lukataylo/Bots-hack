@@ -58,17 +58,7 @@ function traceTime(at: string): string {
 function MarqueePlaceholder({ label }: { label: string }) {
   return (
     <div
-      style={{
-        height: 320,
-        display: "grid",
-        placeItems: "center",
-        color: "var(--text-dim)",
-        fontSize: 12,
-        letterSpacing: "0.08em",
-        border: "1px dashed var(--border)",
-        borderRadius: 8,
-        textTransform: "uppercase",
-      }}
+      className="marquee-empty"
     >
       {label}
     </div>
@@ -469,7 +459,62 @@ export default function RingsideArena() {
       )}
 
       <div className="grid">
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel stage-panel" style={{ gridColumn: "span 12" }}>
+          <div className={`arena-stage ${matchup ? "is-running" : ""}`}>
+            {matchup && marqueeScript ? (
+              <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
+            ) : (
+              <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
+            )}
+
+            <div className="stage-overlay">
+              <div className="stage-line">
+                <div className="stage-corner">
+                  <span className="stage-name display side-a-text">
+                    {matchup?.fighterA.name ?? "CORNER A"}
+                  </span>
+                  <span className="stage-pct num side-a-text">
+                    {odds && !odds.abstain ? `${(odds.winProbA * 100).toFixed(0)}%` : "--"}
+                  </span>
+                </div>
+                <span className="stage-clash" aria-hidden="true" />
+                <div className="stage-corner stage-corner-b">
+                  <span className="stage-name display side-b-text">
+                    {matchup?.fighterB.name ?? "CORNER B"}
+                  </span>
+                  <span className="stage-pct num side-b-text">
+                    {odds && !odds.abstain ? `${(odds.winProbB * 100).toFixed(0)}%` : "--"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="stage-foot">
+                {odds?.abstain ? (
+                  <span className="stage-abstain display">Insufficient evidence, no line posted</span>
+                ) : (
+                  <>
+                    <div className="crowd-bar stage-crowd">
+                      <div className="crowd-a" style={{ width: `${pctA}%` }} />
+                      <div className="crowd-b" style={{ width: `${pctB}%` }} />
+                    </div>
+                    <div className="stage-crowd-legend mono">
+                      <span className="side-a-text">
+                        A {crowd.A}
+                        {machinePick === "A" && <span className="pick-tag">MACHINE PICK</span>}
+                      </span>
+                      <span className="side-b-text">
+                        {machinePick === "B" && <span className="pick-tag">MACHINE PICK</span>}
+                        B {crowd.B}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">
             <span>
               <span className="dot-lead"><span /><span /></span>
@@ -491,7 +536,7 @@ export default function RingsideArena() {
           </div>
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">
             <span>
               <span className="dot-lead"><span /><span /></span>
@@ -541,7 +586,7 @@ export default function RingsideArena() {
           )}
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">1,000 physics runs</div>
           {!matchup?.sim && <p style={{ color: "var(--text-dim)", fontSize: 13 }}>Running Monte Carlo sim...</p>}
           {matchup?.sim && odds && !odds.abstain && (
@@ -579,7 +624,7 @@ export default function RingsideArena() {
           )}
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">
             <span>Crowd pulse</span>
             <span className="mono" style={{ fontSize: 10, color: "var(--text-dim)" }}>
@@ -610,7 +655,7 @@ export default function RingsideArena() {
           <img src="/assets/crowd.png" alt="" className="crowd-footer-art" />
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">Operator controls</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button
@@ -692,17 +737,6 @@ export default function RingsideArena() {
           ) : (
             <p style={{ color: "var(--text-dim)", fontSize: 12 }}>Scout a matchup to assemble bot rigs.</p>
           )}
-        </section>
-
-        <section className="panel" style={{ gridColumn: "span 12" }}>
-          <div className="panel-title">Marquee fight</div>
-          <div className={`physics-canvas-wrap ${matchup ? "is-running" : ""}`}>
-            {matchup && marqueeScript ? (
-              <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
-            ) : (
-              <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
-            )}
-          </div>
         </section>
 
         <section className="panel" style={{ gridColumn: "span 12" }}>
