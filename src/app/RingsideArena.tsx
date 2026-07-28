@@ -41,23 +41,7 @@ const KIND_CLASS: Record<TraceStep["kind"], string> = {
 };
 
 function MarqueePlaceholder({ label }: { label: string }) {
-  return (
-    <div
-      style={{
-        height: 320,
-        display: "grid",
-        placeItems: "center",
-        color: "var(--text-dim)",
-        fontSize: 12,
-        letterSpacing: "0.08em",
-        border: "1px dashed var(--border)",
-        borderRadius: 8,
-        textTransform: "uppercase",
-      }}
-    >
-      {label}
-    </div>
-  );
+  return <div className="marquee-empty">{label}</div>;
 }
 
 function BotPreview({ profile, accent }: { profile: FighterProfile; accent: "#0ECB81" | "#F6465D" }) {
@@ -365,7 +349,62 @@ export default function RingsideArena() {
       </section>
 
       <div className="grid">
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel stage-panel" style={{ gridColumn: "span 12" }}>
+          <div className="arena-stage">
+            {matchup && marqueeScript ? (
+              <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
+            ) : (
+              <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
+            )}
+
+            <div className="stage-overlay">
+              <div className="stage-line">
+                <div className="stage-corner">
+                  <span className="stage-name" style={{ color: "var(--side-a)" }}>
+                    {matchup?.fighterA.name ?? "CORNER A"}
+                  </span>
+                  <span className="stage-pct num" style={{ color: "var(--side-a)" }}>
+                    {odds && !odds.abstain ? `${(odds.winProbA * 100).toFixed(0)}%` : "--"}
+                  </span>
+                </div>
+                <img className="vs-badge" src="/ui/vs-badge.png" alt="versus" />
+                <div className="stage-corner stage-corner-b">
+                  <span className="stage-name" style={{ color: "var(--side-b)" }}>
+                    {matchup?.fighterB.name ?? "CORNER B"}
+                  </span>
+                  <span className="stage-pct num" style={{ color: "var(--side-b)" }}>
+                    {odds && !odds.abstain ? `${(odds.winProbB * 100).toFixed(0)}%` : "--"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="stage-foot">
+                {odds?.abstain ? (
+                  <span className="stage-abstain">INSUFFICIENT EVIDENCE, no line posted</span>
+                ) : (
+                  <>
+                    <div className="crowd-bar stage-crowd">
+                      <div className="crowd-a" style={{ width: `${pctA}%` }} />
+                      <div className="crowd-b" style={{ width: `${pctB}%` }} />
+                    </div>
+                    <div className="stage-crowd-legend mono">
+                      <span style={{ color: "var(--side-a)" }}>
+                        A {crowd.A}
+                        {machinePick === "A" && <span className="pick-tag">MACHINE PICK</span>}
+                      </span>
+                      <span style={{ color: "var(--side-b)" }}>
+                        {machinePick === "B" && <span className="pick-tag">MACHINE PICK</span>}
+                        B {crowd.B}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">Trace: resolve / scrape / crosscheck</div>
           <div className="trace-log" ref={traceLogRef}>
             {trace.length === 0 && <span style={{ color: "var(--text-dim)" }}>Awaiting scouting run...</span>}
@@ -381,7 +420,7 @@ export default function RingsideArena() {
           </div>
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">Odds</div>
           {!odds && <p style={{ color: "var(--text-dim)", fontSize: 13 }}>No line posted yet.</p>}
           {odds && odds.abstain && (
@@ -393,7 +432,9 @@ export default function RingsideArena() {
                 <div className="odds-name" style={{ color: "var(--side-a)" }}>{matchup.fighterA.name}</div>
                 <div className="odds-pct odds-a num">{(odds.winProbA * 100).toFixed(1)}%</div>
               </div>
-              <div className="odds-vs">VS</div>
+              <div className="odds-vs">
+                <img className="vs-badge" src="/ui/vs-badge.png" alt="versus" />
+              </div>
               <div className="odds-side">
                 <div className="odds-name" style={{ color: "var(--side-b)" }}>{matchup.fighterB.name}</div>
                 <div className="odds-pct odds-b num">{(odds.winProbB * 100).toFixed(1)}%</div>
@@ -420,7 +461,7 @@ export default function RingsideArena() {
           )}
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">Sim agreement, 1,000 physics runs</div>
           {!matchup?.sim && <p style={{ color: "var(--text-dim)", fontSize: 13 }}>Running Monte Carlo sim...</p>}
           {matchup?.sim && odds && !odds.abstain && (
@@ -442,7 +483,7 @@ export default function RingsideArena() {
           )}
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 4" }}>
           <div className="panel-title">Crowd + bet link</div>
           <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
             {betUrl && (
@@ -467,7 +508,7 @@ export default function RingsideArena() {
           </div>
         </section>
 
-        <section className="panel" style={{ gridColumn: "span 6" }}>
+        <section className="panel" style={{ gridColumn: "span 5" }}>
           <div className="panel-title">Operator controls</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn btn-rosso" onClick={handleLock} disabled={!matchup || matchup.status !== "open"}>
@@ -505,7 +546,7 @@ export default function RingsideArena() {
             </p>
           )}
           {lastSettlement && (
-            <p className="mono flash-settle" style={{ fontSize: 12, marginTop: 8, color: lastSettlement.correct ? "var(--side-a)" : "var(--side-b)" }}>
+            <p className="mono flash-settle" style={{ fontSize: 12, marginTop: 8, color: lastSettlement.correct ? "var(--ok)" : "var(--bad)" }}>
               settled: {lastSettlement.correct ? "CORRECT CALL" : "MISSED CALL"}
             </p>
           )}
@@ -527,16 +568,10 @@ export default function RingsideArena() {
               <BotPreview profile={matchup.fighterB} accent="#F6465D" />
             </div>
           ) : (
-            <p style={{ color: "var(--text-dim)", fontSize: 12 }}>Scout a matchup to assemble bot rigs.</p>
-          )}
-        </section>
-
-        <section className="panel" style={{ gridColumn: "span 12" }}>
-          <div className="panel-title">Marquee fight</div>
-          {matchup && marqueeScript ? (
-            <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
-          ) : (
-            <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
+            <div className="rig-empty">
+              <img src="/art/bot-blue.png" alt="" />
+              <img src="/art/bot-purple.png" alt="" />
+            </div>
           )}
         </section>
 
