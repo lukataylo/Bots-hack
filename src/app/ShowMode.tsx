@@ -10,12 +10,14 @@ import type { MarqueeScript } from "@/three/types";
 // Real footage keyed by fighter pair (order-insensitive). Falls back to null (no embed).
 const FOOTAGE: Record<string, string> = {
   "ripperoni|tombstone": "cRyghAsC_3Y",
-  "mad catter|tombstone": "_GPZAhE0rLM",
-  "end game|ripperoni": "Iaii-XUxqqU",
-  "black dragon|ripperoni": "3JCKZpFO9zY",
+  "madcatter|tombstone": "_GPZAhE0rLM",
+  "endgame|ripperoni": "Iaii-XUxqqU",
+  "blackdragon|ripperoni": "3JCKZpFO9zY",
 };
 function footageFor(m: { fighterA: { name: string }; fighterB: { name: string } }): string | null {
-  const key = [m.fighterA.name.toLowerCase(), m.fighterB.name.toLowerCase()].sort().join("|");
+  // Wiki titles collapse spaces ("Mad Catter" -> "MadCatter"), so keys are space-free.
+  const norm = (n: string) => n.toLowerCase().replace(/\s+/g, "");
+  const key = [norm(m.fighterA.name), norm(m.fighterB.name)].sort().join("|");
   return FOOTAGE[key] ?? null;
 }
 
