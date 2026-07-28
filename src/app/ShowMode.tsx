@@ -43,6 +43,44 @@ function traceTime(at: string): string {
   }
 }
 
+const FIT_MIN_PX = 20;
+const FIT_MAX_PX = 68;
+let fitCanvas: HTMLCanvasElement | null = null;
+
+/** Shrinks the fighter-name font size so long names stay on one line inside the
+ *  input instead of overflowing past the box edge (e.g. "WITCHDOCTOR" got clipped
+ *  to "WITCHDOCTO" at the old fixed 5vw size). Measures the uppercased text at a
+ *  reference size and scales down to fit the input's current content width. */
+function useFitFontSize(value: string, placeholder: string, ref: React.RefObject<HTMLInputElement | null>) {
+  const [size, setSize] = useState(FIT_MAX_PX);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const paddingX = 16 * 2;
+      const containerWidth = el.clientWidth - paddingX;
+      const text = (value || placeholder).toUpperCase();
+      if (containerWidth <= 0 || !text) {
+        setSize(FIT_MAX_PX);
+        return;
+      }
+      fitCanvas ??= document.createElement("canvas");
+      const ctx = fitCanvas.getContext("2d");
+      if (!ctx) return;
+      const probe = 100;
+      ctx.font = `900 ${probe}px ${getComputedStyle(el).fontFamily}`;
+      const measuredWidth = ctx.measureText(text).width || 1;
+      const fitted = Math.max(FIT_MIN_PX, Math.min(FIT_MAX_PX, (probe * containerWidth) / measuredWidth));
+      setSize(fitted);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [value, placeholder, ref]);
+  return size;
+}
+
 const STAGES = ["input", "scrape", "fight", "bet", "grade"] as const;
 export type ShowStage = (typeof STAGES)[number];
 
@@ -132,6 +170,10 @@ export default function ShowMode(props: ShowModeProps) {
   const [marqueePlayed, setMarqueePlayed] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
   const traceLogRef = useRef<HTMLDivElement | null>(null);
+  const inputARef = useRef<HTMLInputElement | null>(null);
+  const inputBRef = useRef<HTMLInputElement | null>(null);
+  const fitSizeA = useFitFontSize(fighterAName, "FIGHTER A", inputARef);
+  const fitSizeB = useFitFontSize(fighterBName, "FIGHTER B", inputBRef);
 
   const maxIndex = useMemo(() => computeMaxIndex(props, marqueePlayed), [props, marqueePlayed]);
 
@@ -199,19 +241,23 @@ export default function ShowMode(props: ShowModeProps) {
           <div className="show-kicker">SCOUT THE MATCHUP</div>
           <div className="show-entry-row">
             <input
+              ref={inputARef}
               className="show-input show-input-a display"
               placeholder="FIGHTER A"
               value={fighterAName}
               onChange={(e) => setFighterAName(e.target.value)}
               disabled={busy}
+              style={{ fontSize: fitSizeA }}
             />
             <img src="/assets/vs-badge.png" alt="VS" className="show-vs-badge" />
             <input
+              ref={inputBRef}
               className="show-input show-input-b display"
               placeholder="FIGHTER B"
               value={fighterBName}
               onChange={(e) => setFighterBName(e.target.value)}
               disabled={busy}
+              style={{ fontSize: fitSizeB }}
             />
           </div>
           <button className="plate plate-gold-solid display show-go-btn" onClick={handleGo} disabled={busy}>

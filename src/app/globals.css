@@ -1125,7 +1125,7 @@ select {
 .show-input {
   flex: 1;
   min-width: 0;
-  font-size: 5vw;
+  font-size: clamp(20px, 5vw, 68px);
   font-weight: 900;
   text-align: center;
   text-transform: uppercase;
@@ -1134,6 +1134,7 @@ select {
   outline: none;
   background: var(--panel-alt);
   border: 2px solid var(--border);
+  transition: font-size 0.1s ease-out;
 }
 
 .show-input-a { border-color: var(--side-a); color: #ffffff; }
@@ -1156,15 +1157,13 @@ select {
 }
 
 .show-go-btn {
-  font-size: 3vw;
+  font-size: clamp(20px, 3vw, 40px);
   font-weight: 900;
   letter-spacing: 0.1em;
   padding: 20px 60px;
-  border-radius: 12px;
-  border: none;
   cursor: pointer;
   color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 2px 0 rgba(74, 40, 4, 0.9), 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .show-go-btn:disabled {
