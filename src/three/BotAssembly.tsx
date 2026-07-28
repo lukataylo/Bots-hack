@@ -8,7 +8,7 @@ import { buildParts, botScale, clamp, seeded, type MatKind, type PrimGeom } from
 
 export interface BotAssemblyProps {
   profile: FighterProfile;
-  accent: "#0ECB81" | "#F6465D";
+  accent: string;
   assembling?: boolean;
 }
 

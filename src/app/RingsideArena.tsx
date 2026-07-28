@@ -40,6 +40,21 @@ const KIND_CLASS: Record<TraceStep["kind"], string> = {
   error: "k-error",
 };
 
+/** Derived, display-only confidence heuristic from the odds engine's own sample counts.
+ *  More logged fights for an archetype -> more confidence in the plate's bar. Purely a
+ *  render-time formatting helper; does not touch odds arithmetic or state. */
+function confidencePct(sampleCount: number): number {
+  return Math.max(4, Math.min(100, Math.round((sampleCount / (sampleCount + 4)) * 100)));
+}
+
+function traceTime(at: string): string {
+  try {
+    return new Date(at).toLocaleTimeString([], { hour12: false });
+  } catch {
+    return "";
+  }
+}
+
 function MarqueePlaceholder({ label }: { label: string }) {
   return (
     <div
@@ -60,9 +75,9 @@ function MarqueePlaceholder({ label }: { label: string }) {
   );
 }
 
-function BotPreview({ profile, accent }: { profile: FighterProfile; accent: "#0ECB81" | "#F6465D" }) {
+function BotPreview({ profile, accent }: { profile: FighterProfile; accent: string }) {
   return (
-    <div style={{ height: 150, borderRadius: 6, overflow: "hidden", background: "#000" }}>
+    <div className="rig-canvas">
       <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 3]} intensity={1.1} />
@@ -285,6 +300,9 @@ export default function RingsideArena() {
   const pctA = totalVotes ? Math.round((crowd.A / totalVotes) * 100) : 50;
   const pctB = 100 - pctA;
   const machinePick = odds && !odds.abstain ? (odds.winProbA >= odds.winProbB ? "A" : "B") : null;
+  const confA = odds ? confidencePct(odds.sampleCountA) : 0;
+  const confB = odds ? confidencePct(odds.sampleCountB) : 0;
+  const simRunning = !!matchup && !matchup.sim;
 
   if (showMode) {
     return (
@@ -315,11 +333,17 @@ export default function RingsideArena() {
   return (
     <div className="arena">
       <header className="arena-header">
-        <div className="wordmark">
-          <span className="dot" />
+        <div className="wordmark display">
+          <img src="/assets/icon-gold.png" alt="" className="wordmark-logo" />
           RINGSIDE ARENA
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          {matchup?.hashSha256 && (
+            <span className="mono" style={{ fontSize: 10, color: "var(--text-dim)" }}>
+              pre-committed {matchup.hashSha256.slice(0, 10)}
+              {matchup.gitCommitSha ? ` @ ${matchup.gitCommitSha.slice(0, 8)}` : " (commit pending)"}
+            </span>
+          )}
           {isLive && <span className="badge-live">LIVE</span>}
           {matchup && <span className={`status-pill status-${matchup.status}`}>{matchup.status}</span>}
           <button className="btn" onClick={toggleShowMode}>
@@ -328,49 +352,135 @@ export default function RingsideArena() {
         </div>
       </header>
 
-      <section className="panel">
-        <div className="panel-title">
-          <span>Scout a matchup</span>
-          {matchup?.hashSha256 && (
-            <span className="mono" style={{ fontSize: 10, color: "var(--text-dim)" }}>
-              pre-committed {matchup.hashSha256.slice(0, 10)}
-              {matchup.gitCommitSha ? ` @ ${matchup.gitCommitSha.slice(0, 8)}` : " (commit pending)"}
-            </span>
-          )}
+      <section className="fighter-row">
+        <div className="plate plate-blue fighter-card">
+          <img
+            src={matchup?.fighterA.photo_url || "/assets/bot-blue.png"}
+            alt=""
+            className="fighter-art"
+          />
+          <div className="fighter-info">
+            <div className="fighter-name display fighter-name-a">
+              {matchup?.fighterA.name || fighterAName || "FIGHTER A"}
+            </div>
+            {matchup && (
+              <div className="fighter-meta-row">
+                <div>
+                  <div className="fighter-meta-label">Record</div>
+                  <div className="fighter-meta-value side-a-text num">
+                    {matchup.fighterA.wins}-{matchup.fighterA.losses}-{matchup.fighterA.ko_wins}
+                  </div>
+                </div>
+                <div>
+                  <div className="fighter-meta-label">Weapon</div>
+                  <div className="fighter-meta-value">{matchup.fighterA.weapon_class.replace(/_/g, " ")}</div>
+                </div>
+              </div>
+            )}
+            {odds && !odds.abstain && (
+              <>
+                <div className="confidence-label">
+                  <span>Data confidence</span>
+                  <span className="num">{confA}%</span>
+                </div>
+                <div className="confidence-bar confidence-bar-a">
+                  <div className="confidence-mask" style={{ width: `${100 - confA}%` }} />
+                </div>
+              </>
+            )}
+            <div className="fighter-meta-label" style={{ marginTop: 10 }}>
+              Scout A selection
+            </div>
+            <input
+              className="entry-input side-a-border fighter-select"
+              placeholder="Fighter A (e.g. Tombstone)"
+              value={fighterAName}
+              onChange={(e) => setFighterAName(e.target.value)}
+              disabled={busy}
+            />
+          </div>
         </div>
-        <div className="entry-row">
-          <input
-            className="entry-input side-a-border"
-            placeholder="Fighter A (e.g. Tombstone)"
-            value={fighterAName}
-            onChange={(e) => setFighterAName(e.target.value)}
-            disabled={busy}
-          />
-          <input
-            className="entry-input side-b-border"
-            placeholder="Fighter B (e.g. Bite Force)"
-            value={fighterBName}
-            onChange={(e) => setFighterBName(e.target.value)}
-            disabled={busy}
-          />
-          <button className="btn btn-go" onClick={handleGo} disabled={busy}>
-            {busy ? "SCOUTING..." : "GO"}
+
+        <div className="vs-col">
+          <img src="/assets/vs-badge.png" alt="VS" className="vs-badge-img" />
+          <div className="vs-col-kicker mono">
+            Sim agreement
+            <br />
+            1,000 physics runs
+          </div>
+          <button className="plate plate-gold-solid display btn-run-matchup" onClick={handleGo} disabled={busy}>
+            {busy ? "SCOUTING..." : "RUN MATCHUP"}
           </button>
         </div>
-        {scoutError && (
-          <p className="mono" style={{ color: "var(--rosso)", fontSize: 12, marginTop: 10 }}>
-            {scoutError}
-          </p>
-        )}
+
+        <div className="plate plate-purple fighter-card fighter-card-b">
+          <img
+            src={matchup?.fighterB.photo_url || "/assets/bot-purple.png"}
+            alt=""
+            className="fighter-art"
+          />
+          <div className="fighter-info">
+            <div className="fighter-name display fighter-name-b">
+              {matchup?.fighterB.name || fighterBName || "FIGHTER B"}
+            </div>
+            {matchup && (
+              <div className="fighter-meta-row">
+                <div>
+                  <div className="fighter-meta-label">Weapon</div>
+                  <div className="fighter-meta-value">{matchup.fighterB.weapon_class.replace(/_/g, " ")}</div>
+                </div>
+                <div>
+                  <div className="fighter-meta-label">Record</div>
+                  <div className="fighter-meta-value side-b-text num">
+                    {matchup.fighterB.wins}-{matchup.fighterB.losses}-{matchup.fighterB.ko_wins}
+                  </div>
+                </div>
+              </div>
+            )}
+            {odds && !odds.abstain && (
+              <>
+                <div className="confidence-label">
+                  <span className="num">{confB}%</span>
+                  <span>Data confidence</span>
+                </div>
+                <div className="confidence-bar confidence-bar-b">
+                  <div className="confidence-mask" style={{ width: `${100 - confB}%` }} />
+                </div>
+              </>
+            )}
+            <div className="fighter-meta-label" style={{ marginTop: 10, textAlign: "right" }}>
+              Scout B selection
+            </div>
+            <input
+              className="entry-input side-b-border fighter-select"
+              placeholder="Fighter B (e.g. Bite Force)"
+              value={fighterBName}
+              onChange={(e) => setFighterBName(e.target.value)}
+              disabled={busy}
+              style={{ textAlign: "right" }}
+            />
+          </div>
+        </div>
       </section>
+      {scoutError && (
+        <p className="mono" style={{ color: "var(--alert)", fontSize: 12, padding: "0 4px" }}>
+          {scoutError}
+        </p>
+      )}
 
       <div className="grid">
         <section className="panel" style={{ gridColumn: "span 6" }}>
-          <div className="panel-title">Trace: resolve / scrape / crosscheck</div>
+          <div className="panel-title">
+            <span>
+              <span className="dot-lead"><span /><span /></span>
+              Live intelligence feed
+            </span>
+          </div>
           <div className="trace-log" ref={traceLogRef}>
             {trace.length === 0 && <span style={{ color: "var(--text-dim)" }}>Awaiting scouting run...</span>}
             {trace.map((t) => (
               <div key={t.id} className="trace-line">
+                {t.at && <span className="trace-time mono">{traceTime(t.at)}</span>}
                 <span className={`trace-kind ${KIND_CLASS[t.kind]}`}>{t.kind}</span>
                 <span>
                   {t.label}
@@ -382,20 +492,31 @@ export default function RingsideArena() {
         </section>
 
         <section className="panel" style={{ gridColumn: "span 6" }}>
-          <div className="panel-title">Odds</div>
+          <div className="panel-title">
+            <span>
+              <span className="dot-lead"><span /><span /></span>
+              Prediction
+            </span>
+          </div>
           {!odds && <p style={{ color: "var(--text-dim)", fontSize: 13 }}>No line posted yet.</p>}
           {odds && odds.abstain && (
-            <div className="abstain-banner">INSUFFICIENT EVIDENCE, no line posted</div>
+            <div className="plate plate-gold-solid abstain-plate">
+              <img src="/assets/icon-gold.png" alt="" className="abstain-icon" />
+              <div>
+                <div className="abstain-title display">Insufficient evidence</div>
+                <div className="abstain-sub">no line posted</div>
+              </div>
+            </div>
           )}
           {odds && !odds.abstain && matchup && (
             <div className="odds-row">
               <div className="odds-side">
-                <div className="odds-name" style={{ color: "var(--side-a)" }}>{matchup.fighterA.name}</div>
+                <div className="odds-name display" style={{ color: "var(--side-a)" }}>{matchup.fighterA.name}</div>
                 <div className="odds-pct odds-a num">{(odds.winProbA * 100).toFixed(1)}%</div>
               </div>
               <div className="odds-vs">VS</div>
               <div className="odds-side">
-                <div className="odds-name" style={{ color: "var(--side-b)" }}>{matchup.fighterB.name}</div>
+                <div className="odds-name display" style={{ color: "var(--side-b)" }}>{matchup.fighterB.name}</div>
                 <div className="odds-pct odds-b num">{(odds.winProbB * 100).toFixed(1)}%</div>
               </div>
             </div>
@@ -414,17 +535,33 @@ export default function RingsideArena() {
             </>
           )}
           {matchup?.narration && (
-            <p style={{ marginTop: 10, fontStyle: "italic", color: "var(--amber)", fontSize: 13 }}>
+            <p style={{ marginTop: 10, fontStyle: "italic", color: "var(--gold)", fontSize: 13 }}>
               &ldquo;{matchup.narration}&rdquo;
             </p>
           )}
         </section>
 
         <section className="panel" style={{ gridColumn: "span 6" }}>
-          <div className="panel-title">Sim agreement, 1,000 physics runs</div>
+          <div className="panel-title">1,000 physics runs</div>
           {!matchup?.sim && <p style={{ color: "var(--text-dim)", fontSize: 13 }}>Running Monte Carlo sim...</p>}
           {matchup?.sim && odds && !odds.abstain && (
             <>
+              <div className="physics-stats-row">
+                <div>
+                  <div className="physics-stat-label">{matchup.fighterA.name} win</div>
+                  <div className="physics-stat-value side-a-text num">{(matchup.sim.winShareA * 100).toFixed(1)}%</div>
+                </div>
+                <div>
+                  <div className="physics-stat-label">{matchup.fighterB.name} win</div>
+                  <div className="physics-stat-value side-b-text num">{(matchup.sim.winShareB * 100).toFixed(1)}%</div>
+                </div>
+                <div>
+                  <div className="physics-stat-label">Draw</div>
+                  <div className="physics-stat-value num">
+                    {Math.max(0, 100 - matchup.sim.winShareA * 100 - matchup.sim.winShareB * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
               <div className="agree-track">
                 <div className="agree-fill" />
                 <div className="agree-marker" style={{ left: `${odds.winProbA * 100}%` }} title="posted line" />
@@ -443,7 +580,12 @@ export default function RingsideArena() {
         </section>
 
         <section className="panel" style={{ gridColumn: "span 6" }}>
-          <div className="panel-title">Crowd + bet link</div>
+          <div className="panel-title">
+            <span>Crowd pulse</span>
+            <span className="mono" style={{ fontSize: 10, color: "var(--text-dim)" }}>
+              {totalVotes} votes cast
+            </span>
+          </div>
           <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
             {betUrl && (
               <div className="qr-wrap">
@@ -465,55 +607,66 @@ export default function RingsideArena() {
               </div>
             </div>
           </div>
+          <img src="/assets/crowd.png" alt="" className="crowd-footer-art" />
         </section>
 
         <section className="panel" style={{ gridColumn: "span 6" }}>
           <div className="panel-title">Operator controls</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <button className="btn btn-rosso" onClick={handleLock} disabled={!matchup || matchup.status !== "open"}>
-              LOCK LINES
-            </button>
-            <select
-              className="entry-input"
-              style={{ flex: "0 0 160px" }}
-              value={settleWinner}
-              onChange={(e) => setSettleWinner(e.target.value as "A" | "B")}
-            >
-              <option value="A">Winner: A</option>
-              <option value="B">Winner: B</option>
-            </select>
-            <select
-              className="entry-input"
-              style={{ flex: "0 0 200px" }}
-              value={settleMethod}
-              onChange={(e) => setSettleMethod(e.target.value as "live-scrape" | "operator-confirmed")}
-            >
-              <option value="live-scrape">Method: live scrape</option>
-              <option value="operator-confirmed">Method: operator confirmed</option>
-            </select>
             <button
-              className="btn"
+              className="plate plate-red-solid display btn-lock"
+              style={{ flex: "1 1 180px" }}
+              onClick={handleLock}
+              disabled={!matchup || matchup.status !== "open"}
+            >
+              Lock lines
+            </button>
+            <div className="plate plate-dropdown" style={{ flex: "0 0 160px" }}>
+              <select
+                className="select-native"
+                value={settleWinner}
+                onChange={(e) => setSettleWinner(e.target.value as "A" | "B")}
+              >
+                <option value="A">Winner: A</option>
+                <option value="B">Winner: B</option>
+              </select>
+            </div>
+            <div className="plate plate-dropdown" style={{ flex: "0 0 200px" }}>
+              <select
+                className="select-native"
+                value={settleMethod}
+                onChange={(e) => setSettleMethod(e.target.value as "live-scrape" | "operator-confirmed")}
+              >
+                <option value="live-scrape">Method: live scrape</option>
+                <option value="operator-confirmed">Method: operator confirmed</option>
+              </select>
+            </div>
+            <button
+              className="plate plate-gold-solid display btn-settle"
               onClick={handleSettle}
               disabled={!matchup || matchup.status !== "locked" || !matchup.gitCommitSha}
             >
-              SETTLE
+              Settle
             </button>
           </div>
           {operatorMsg && (
-            <p className="mono" style={{ color: "var(--rosso)", fontSize: 12, marginTop: 8 }}>
+            <p className="mono" style={{ color: "var(--alert)", fontSize: 12, marginTop: 8 }}>
               {operatorMsg}
             </p>
           )}
           {lastSettlement && (
-            <p className="mono flash-settle" style={{ fontSize: 12, marginTop: 8, color: lastSettlement.correct ? "var(--side-a)" : "var(--side-b)" }}>
+            <p className="mono flash-settle" style={{ fontSize: 12, marginTop: 8, color: lastSettlement.correct ? "var(--success)" : "var(--alert)" }}>
               settled: {lastSettlement.correct ? "CORRECT CALL" : "MISSED CALL"}
             </p>
           )}
+          <p style={{ color: "var(--text-dim)", fontSize: 11, marginTop: 8 }}>
+            Locking lines prevents further automated updates from altering the posted result.
+          </p>
         </section>
 
         <section className="panel" style={{ gridColumn: "span 3" }}>
           <div className="panel-title">Accuracy tonight</div>
-          <div className="num" style={{ fontSize: 34, fontWeight: 700 }}>
+          <div className="num display" style={{ fontSize: 34 }}>
             <CountUp end={accuracy.correct} duration={0.8} /> / {accuracy.total}
           </div>
           <p style={{ color: "var(--text-dim)", fontSize: 12, marginTop: 4 }}>called correct tonight</p>
@@ -523,8 +676,18 @@ export default function RingsideArena() {
           <div className="panel-title">Fighter rigs</div>
           {matchup ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <BotPreview profile={matchup.fighterA} accent="#0ECB81" />
-              <BotPreview profile={matchup.fighterB} accent="#F6465D" />
+              <div className="plate plate-blue rig-cell">
+                <BotPreview profile={matchup.fighterA} accent="#3D7BFF" />
+                <img src="/assets/bot-blue.png" alt="" className="rig-mascot-corner" />
+                <div className="rig-name display side-a-text">{matchup.fighterA.name}</div>
+                <div className="rig-meta">{matchup.fighterA.weapon_class.replace(/_/g, " ")}</div>
+              </div>
+              <div className="plate plate-purple rig-cell">
+                <BotPreview profile={matchup.fighterB} accent="#9B4DFF" />
+                <img src="/assets/bot-purple.png" alt="" className="rig-mascot-corner" />
+                <div className="rig-name display side-b-text">{matchup.fighterB.name}</div>
+                <div className="rig-meta">{matchup.fighterB.weapon_class.replace(/_/g, " ")}</div>
+              </div>
             </div>
           ) : (
             <p style={{ color: "var(--text-dim)", fontSize: 12 }}>Scout a matchup to assemble bot rigs.</p>
@@ -533,11 +696,13 @@ export default function RingsideArena() {
 
         <section className="panel" style={{ gridColumn: "span 12" }}>
           <div className="panel-title">Marquee fight</div>
-          {matchup && marqueeScript ? (
-            <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
-          ) : (
-            <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
-          )}
+          <div className={`physics-canvas-wrap ${matchup ? "is-running" : ""}`}>
+            {matchup && marqueeScript ? (
+              <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
+            ) : (
+              <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
+            )}
+          </div>
         </section>
 
         <section className="panel" style={{ gridColumn: "span 12" }}>

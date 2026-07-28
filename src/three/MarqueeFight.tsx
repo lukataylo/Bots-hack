@@ -14,8 +14,8 @@ export interface MarqueeFightProps {
   fighterB: FighterProfile;
 }
 
-const ACCENT_A = "#0ECB81";
-const ACCENT_B = "#F6465D";
+const ACCENT_A = "#3D7BFF";
+const ACCENT_B = "#9B4DFF";
 const ROSSO = "#D40000";
 const BG = "#0B0E11";
 
