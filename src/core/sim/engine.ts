@@ -36,7 +36,12 @@ const COOLDOWN_MAX_TICKS = 22; // ~2.2s
 
 const DAMAGE_SCALE = 0.032; // HP lost per unit impulse (N.s) on a base landed blow
 const LAUNCH_DAMAGE_SCALE = 0.045; // extra HP lost per unit launchImpulse on a launch event
-const BIAS_K = 1.7; // amplifies (odds.winProbA - 0.5) into the per-engagement win roll
+// Calibrated empirically (not derived) against a spinner-vs-flipper matchup swept across
+// winProbA in [0.34, 0.90]: a per-engagement race to ~15 landed hits amplifies a fixed
+// per-trial edge a lot (classic gambler's-ruin sharpening), so BIAS_K stays well below 1 to
+// compensate — 0.4 keeps the resulting winShare within ~0.15 of the passed odds across that
+// whole sweep while abstain (odds 0.5/0.5) still lands within 0.5 +/- 0.15.
+const BIAS_K = 0.4;
 const REFERENCE_WEIGHT_KG = 100;
 
 let initPromise: Promise<void> | null = null;
