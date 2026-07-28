@@ -1,117 +1,79 @@
-// RINGSIDE ARENA — the odds engine.
+// Archetype-level Elo rating — re-keyed from the per-player reference (elo-lift-reference.ts)
+// to per-WeaponArchetype ratings. Standard Elo, K=32, seed 1500. Ratings persist via
+// db.eloLedger()/appendEloLedger(): current rating for an archetype = the rating_after of the
+// most recent ledger row for that archetype (default 1500 if none exists).
 //
-// Weapon-archetype Elo fitted over scraped fight records, plus a shrunk per-bot
-// record offset. Every number the room bets against is produced here by
-// arithmetic that gets printed on screen. No model is asked to guess a price.
-// Below the evidence threshold this abstains instead of inventing a line.
+// No I/O side effects beyond the explicit db calls below — pure math mirrors elo-lift-reference.ts.
 
-import type { BotRecord, FighterProfile, MatchupOdds, WeaponArchetype } from '../lib/types';
+import type { WeaponArchetype } from '../lib/types';
+import { appendEloLedger, eloLedger } from '../lib/db';
 
-export const ELO_SEED = 1500;
-export const ELO_K = 24;
-/** Fewer records than this on either side and the bookie posts no line. */
-export const MIN_SAMPLES = 8;
+export const ARCHETYPE_ELO_SEED = 1500;
+export const ARCHETYPE_ELO_K = 32;
 
+/** Expected score of A against B (0..1). Identical formula to elo-lift-reference.ts. */
 export function expectedScore(aElo: number, bElo: number): number {
   return 1 / (1 + Math.pow(10, (bElo - aElo) / 400));
 }
 
-export interface ArchetypeRating { rating: number; n: number }
-export type Ratings = Record<string, ArchetypeRating>;
+export interface EloUpdate {
+  a: number;
+  b: number;
+  /** Signed change applied to A (B gets the negation). */
+  delta: number;
+}
+
+/** Apply one Elo update. `outcomeA` is 1 / 0 / 0.5. Zero-sum and symmetric. */
+export function eloUpdate(aElo: number, bElo: number, outcomeA: number, k = ARCHETYPE_ELO_K): EloUpdate {
+  const ea = expectedScore(aElo, bElo);
+  const delta = Math.round(k * (outcomeA - ea));
+  return { a: aElo + delta, b: bElo - delta, delta };
+}
 
 /**
- * Fit archetype ratings from fight records, oldest season first.
- * Mirror rows (the same fight scraped from both bots) are collapsed, and
- * same-archetype fights are skipped: they carry no archetype information.
+ * Current rating for an archetype = rating_after of the most recent elo_ledger row for that
+ * archetype, or ARCHETYPE_ELO_SEED (1500) if the archetype has never appeared in the ledger.
  */
-export function fitArchetypeRatings(records: BotRecord[]): Ratings {
-  const ratings: Ratings = {};
-  const get = (k: WeaponArchetype) => (ratings[k] ??= { rating: ELO_SEED, n: 0 });
-
-  const seen = new Set<string>();
-  const ordered = [...records].sort((a, b) => seasonNum(a.season) - seasonNum(b.season));
-
-  for (const r of ordered) {
-    if (r.weapon_class === r.opponent_weapon_class) continue;
-    const pair = [r.bot.toLowerCase(), r.opponent.toLowerCase()].sort().join('|');
-    const k = `${pair}|${r.season}|${r.method}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-
-    const A = get(r.weapon_class), B = get(r.opponent_weapon_class);
-    const outcomeA = r.outcome === 'win' ? 1 : 0;
-    const delta = ELO_K * (outcomeA - expectedScore(A.rating, B.rating));
-    A.rating += delta; B.rating -= delta;
-    A.n++; B.n++;
+export function currentRating(archetype: WeaponArchetype, ledger = eloLedger()): number {
+  for (let i = ledger.length - 1; i >= 0; i -= 1) {
+    if (ledger[i].archetype === archetype) return ledger[i].rating_after;
   }
-  return ratings;
+  return ARCHETYPE_ELO_SEED;
 }
 
-function seasonNum(s: string): number {
-  const m = s.match(/\d+/);
-  return m ? Number(m[0]) : 0;
-}
-
-/** A fighter's own record as an Elo offset, shrunk hard when the record is thin. */
-function recordOffset(p: FighterProfile): { offset: number; fights: number; shrink: number } {
-  const fights = p.wins + p.losses;
-  if (fights === 0) return { offset: 0, fights: 0, shrink: 0 };
-  const wr = Math.min(0.95, Math.max(0.05, p.wins / fights));
-  const raw = Math.max(-250, Math.min(250, 400 * Math.log10(wr / (1 - wr))));
-  const shrink = fights / (fights + 6);
-  return { offset: raw * shrink, fights, shrink };
+/** Snapshot of current ratings for every archetype seen so far (for display / debugging). */
+export function allCurrentRatings(): Record<string, number> {
+  const ledger = eloLedger();
+  const seen = new Set<string>();
+  const out: Record<string, number> = {};
+  for (let i = ledger.length - 1; i >= 0; i -= 1) {
+    const row = ledger[i];
+    if (seen.has(row.archetype)) continue;
+    seen.add(row.archetype);
+    out[row.archetype] = row.rating_after;
+  }
+  return out;
 }
 
 /**
- * Price the matchup. Returns `abstain: true` with a reason when either side has
- * less evidence than MIN_SAMPLES; the caller must not post a line in that case.
+ * Record the outcome of a matchup between two archetypes and persist the Elo update to
+ * elo_ledger via appendEloLedger. `outcomeA` is 1 (A won), 0 (A lost), or 0.5 (draw/void).
+ * Returns the resulting ratings.
  */
-export function computeOdds(a: FighterProfile, b: FighterProfile, records: BotRecord[]): MatchupOdds {
-  const ratings = fitArchetypeRatings(records);
-  const ra = ratings[a.weapon_class] ?? { rating: ELO_SEED, n: 0 };
-  const rb = ratings[b.weapon_class] ?? { rating: ELO_SEED, n: 0 };
-  const oa = recordOffset(a), ob = recordOffset(b);
+export function recordArchetypeResult(
+  archetypeA: WeaponArchetype,
+  archetypeB: WeaponArchetype,
+  outcomeA: number,
+  matchupId: string,
+  k = ARCHETYPE_ELO_K,
+): EloUpdate {
+  const ledger = eloLedger();
+  const beforeA = currentRating(archetypeA, ledger);
+  const beforeB = currentRating(archetypeB, ledger);
+  const update = eloUpdate(beforeA, beforeB, outcomeA, k);
 
-  const eloA = ra.rating + oa.offset;
-  const eloB = rb.rating + ob.offset;
-  const p = expectedScore(eloA, eloB);
+  appendEloLedger({ archetype: archetypeA, ratingBefore: beforeA, ratingAfter: update.a, matchupId });
+  appendEloLedger({ archetype: archetypeB, ratingBefore: beforeB, ratingAfter: update.b, matchupId });
 
-  const sampleCountA = ra.n + oa.fights;
-  const sampleCountB = rb.n + ob.fights;
-  const nEff = Math.max(1, Math.min(sampleCountA, sampleCountB));
-  const se = 0.5 / Math.sqrt(nEff);
-  const ci: [number, number] = [
-    Math.max(0.01, p - 1.96 * se),
-    Math.min(0.99, p + 1.96 * se),
-  ];
-
-  const r = (x: number, d = 0) => x.toFixed(d);
-  const arithmeticTrace = [
-    `${a.weapon_class} archetype Elo ${r(ra.rating)} from ${ra.n} archetype-vs-archetype results`,
-    `${b.weapon_class} archetype Elo ${r(rb.rating)} from ${rb.n} archetype-vs-archetype results`,
-    `${a.name} record ${a.wins}-${a.losses} -> ${oa.offset >= 0 ? '+' : ''}${r(oa.offset)} Elo (shrunk x${r(oa.shrink, 2)})`,
-    `${b.name} record ${b.wins}-${b.losses} -> ${ob.offset >= 0 ? '+' : ''}${r(ob.offset)} Elo (shrunk x${r(ob.shrink, 2)})`,
-    `expected(${r(eloA)}, ${r(eloB)}) = 1 / (1 + 10^((${r(eloB)} - ${r(eloA)}) / 400)) = ${r(p, 3)}`,
-    `95% interval from n=${nEff}: ${r(ci[0], 3)} to ${r(ci[1], 3)}`,
-  ];
-
-  const thin = Math.min(sampleCountA, sampleCountB) < MIN_SAMPLES;
-  return {
-    winProbA: p,
-    winProbB: 1 - p,
-    confidenceInterval: ci,
-    sampleCountA,
-    sampleCountB,
-    weighting: `archetype Elo (K=${ELO_K}, seed ${ELO_SEED}) + record offset shrunk by n/(n+6)`,
-    arithmeticTrace,
-    abstain: thin,
-    abstainReason: thin
-      ? `Insufficient evidence: ${Math.min(sampleCountA, sampleCountB)} results on the thinner side, ${MIN_SAMPLES} required. No line posted, bets void.`
-      : undefined,
-  };
-}
-
-/** Decimal odds for display. Vig-free: this is a probability, not a price. */
-export function toDecimalOdds(p: number): string {
-  return (1 / Math.max(0.01, p)).toFixed(2);
+  return update;
 }
