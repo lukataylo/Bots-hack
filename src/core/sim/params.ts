@@ -9,10 +9,14 @@
 // carry their own bonus damage roll in engine.ts, so a flipper that keeps landing launches has a
 // real, structural path to KO-ing even a heavier spinner).
 //
-// impulseMean is intentionally kept in a narrow band (150-190) across every archetype so no
-// archetype is inherently a bigger hitter than another "for free" — the spread in average damage
-// per landed blow across archetypes should stay small; the spread in *variance* (crit/launch
-// chance) is where the flavor lives.
+// impulseMean is solved per archetype (see the comment above each entry) so that EXPECTED DAMAGE
+// PER LANDED BLOW — impulseMean*DAMAGE_SCALE*(1 + critChance*(critMultiplier-1)) + launchChance*
+// launchImpulse*LAUNCH_DAMAGE_SCALE (both constants live in engine.ts) — comes out to the same
+// ~6.5 HP for every archetype. This matters a lot: without it, an archetype with a big launch
+// bonus (flipper) needs fewer average landed hits to KO than one without, which skews the sim's
+// winShare even at a perfectly fair 50/50 engagement roll (verified empirically — this is the
+// actual bug behind the "flipper always loses to spinner" balance report). Flavor now lives
+// entirely in HOW damage arrives (raw impulse vs crit spikes vs launch spikes), not how much.
 
 import type { WeaponArchetype } from '../../lib/types';
 

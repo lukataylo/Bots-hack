@@ -85,7 +85,7 @@ export default function RingsideArena() {
   const [accuracy, setAccuracy] = useState<{ correct: number; total: number }>({ correct: 0, total: 0 });
   const [ledger, setLedger] = useState<EloLedgerRow[]>([]);
 
-  const [origin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
+  const [betOrigin, setBetOrigin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
   const [marqueeScript, setMarqueeScript] = useState<MarqueeScript | null>(null);
 
   const [settleWinner, setSettleWinner] = useState<"A" | "B">("A");
@@ -101,10 +101,11 @@ export default function RingsideArena() {
     const load = async () => {
       try {
         const res = await fetch("/api/stats", { cache: "no-store" });
-        const data = (await res.json()) as { accuracyTally: { correct: number; total: number }; eloLedger: EloLedgerRow[] };
+        const data = (await res.json()) as { accuracyTally: { correct: number; total: number }; eloLedger: EloLedgerRow[]; betOrigin?: string | null };
         if (!alive) return;
         setAccuracy(data.accuracyTally);
         setLedger(data.eloLedger);
+        if (data.betOrigin) setBetOrigin(data.betOrigin);
       } catch {
         /* keep last known values */
       }
@@ -260,7 +261,7 @@ export default function RingsideArena() {
 
   const odds = matchup?.odds ?? null;
   const isLive = !!matchup && matchup.status !== "settled";
-  const betUrl = matchup && origin ? `${origin}/bet/${matchup.id}` : "";
+  const betUrl = matchup && betOrigin ? `${betOrigin}/bet/${matchup.id}` : "";
   const totalVotes = crowd.A + crowd.B;
   const pctA = totalVotes ? Math.round((crowd.A / totalVotes) * 100) : 50;
   const pctB = 100 - pctA;
