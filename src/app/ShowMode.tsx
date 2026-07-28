@@ -375,8 +375,8 @@ export default function ShowMode(props: ShowModeProps) {
           <div className="show-kicker">THE ROOM BETS</div>
           {!linesClosed ? (
             <>
-              <div className="plate plate-gold-solid show-qr-wrap">
-                <div className="show-qr-wrap"><QRCodeSVG value={betUrl || "https://ringside.arena"} size={360} className="show-qr" fgColor="#120b22" bgColor="#F5B426" /></div>
+              <div style={{ background: "#F5B426", padding: 14, borderRadius: 14, display: "inline-flex", lineHeight: 0 }}>
+                <QRCodeSVG value={betUrl || "https://ringside.arena"} size={360} fgColor="#120b22" bgColor="#F5B426" />
               </div>
               <div className="show-crowd-bar">
                 <div className="show-crowd-a" style={{ width: `${pctA}%` }} />
