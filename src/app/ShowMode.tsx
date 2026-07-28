@@ -7,7 +7,7 @@ import CountUp from "react-countup";
 import type { FighterProfile, Matchup, SettlementResult, TraceStep } from "@/lib/types";
 import type { MarqueeScript } from "@/three/types";
 
-const MarqueeFight = dynamic(() => import("@/three").then((m) => m.MarqueeFight), { ssr: false });
+const LukaFight = dynamic(() => import("./LukaFight"), { ssr: false });
 const BotAssembly = dynamic(() => import("@/three").then((m) => m.BotAssembly), { ssr: false });
 const Canvas = dynamic(() => import("@react-three/fiber").then((m) => m.Canvas), { ssr: false });
 
@@ -251,11 +251,7 @@ export default function ShowMode(props: ShowModeProps) {
         <div className="show-scene show-fade">
           <div className="show-kicker">PHYSICS FIGHTS THE FIGHT BEFORE REALITY DOES</div>
           <div className="show-marquee-wrap">
-            {marqueeScript ? (
-              <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
-            ) : (
-              <div className="show-marquee-loading">RENDERING MARQUEE FIGHT</div>
-            )}
+            <LukaFight matchup={matchup} />
           </div>
           {odds && !odds.abstain && (
             <div className="show-odds-row">

@@ -8,7 +8,7 @@ import type { FighterProfile, Matchup, SettlementResult, TraceStep } from "@/lib
 import type { MarqueeScript } from "@/three/types";
 import ShowMode from "./ShowMode";
 
-const MarqueeFight = dynamic(() => import("@/three").then((m) => m.MarqueeFight), {
+const LukaFight = dynamic(() => import("./LukaFight"), {
   ssr: false,
   loading: () => <MarqueePlaceholder label="LOADING RENDERER" />,
 });
@@ -468,10 +468,10 @@ export default function RingsideArena() {
       <div className="grid">
         <section className="panel stage-panel" style={{ gridColumn: "span 12" }}>
           <div className={`arena-stage ${matchup ? "is-running" : ""}`}>
-            {matchup && marqueeScript ? (
-              <MarqueeFight script={marqueeScript} fighterA={matchup.fighterA} fighterB={matchup.fighterB} />
+            {matchup ? (
+              <LukaFight matchup={matchup} />
             ) : (
-              <MarqueePlaceholder label={matchup ? "RENDERING MARQUEE FIGHT" : "AWAITING MATCHUP"} />
+              <MarqueePlaceholder label="AWAITING MATCHUP" />
             )}
 
             <div className="stage-overlay">
