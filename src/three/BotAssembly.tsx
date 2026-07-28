@@ -30,8 +30,14 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
   const parts = useMemo(() => buildParts(profile.weapon_class, scale), [profile.weapon_class, scale]);
 
   const metalMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#1b1f27", metalness: 0.75, roughness: 0.38 }),
-    [],
+    () => new THREE.MeshStandardMaterial({
+      color: "#454e60",
+      metalness: 0.7,
+      roughness: 0.35,
+      emissive: accent,
+      emissiveIntensity: 0.12,
+    }),
+    [accent],
   );
   const accentMat = useMemo(
     () =>
@@ -47,11 +53,11 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
   const weaponMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#2a2f3a",
+        color: "#59637a",
         metalness: 0.85,
         roughness: 0.22,
         emissive: accent,
-        emissiveIntensity: 0.55,
+        emissiveIntensity: 0.8,
       }),
     [accent],
   );

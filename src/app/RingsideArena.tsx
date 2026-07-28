@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import CountUp from "react-countup";
 import type { FighterProfile, Matchup, SettlementResult, TraceStep } from "@/lib/types";
 import type { MarqueeScript } from "@/three/types";
+import ShowMode from "./ShowMode";
 
 const MarqueeFight = dynamic(() => import("@/three").then((m) => m.MarqueeFight), {
   ssr: false,
@@ -94,6 +95,24 @@ export default function RingsideArena() {
   const [lastSettlement, setLastSettlement] = useState<SettlementResult | null>(null);
 
   const traceLogRef = useRef<HTMLDivElement | null>(null);
+
+  const [showMode, setShowMode] = useState(() => (typeof window !== "undefined" ? window.location.hash === "#show" : false));
+
+  useEffect(() => {
+    const onHashChange = () => setShowMode(window.location.hash === "#show");
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const toggleShowMode = useCallback(() => {
+    setShowMode((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.location.hash = next ? "show" : "";
+      }
+      return next;
+    });
+  }, []);
 
   // Global stats: accuracy ticker + Elo scar ledger, independent of the current matchup.
   useEffect(() => {
@@ -267,6 +286,32 @@ export default function RingsideArena() {
   const pctB = 100 - pctA;
   const machinePick = odds && !odds.abstain ? (odds.winProbA >= odds.winProbB ? "A" : "B") : null;
 
+  if (showMode) {
+    return (
+      <ShowMode
+        onExit={toggleShowMode}
+        fighterAName={fighterAName}
+        fighterBName={fighterBName}
+        setFighterAName={setFighterAName}
+        setFighterBName={setFighterBName}
+        busy={busy}
+        scoutError={scoutError}
+        handleGo={handleGo}
+        jobId={jobId}
+        trace={trace}
+        matchup={matchup}
+        crowd={crowd}
+        marqueeScript={marqueeScript}
+        betUrl={betUrl}
+        handleLock={handleLock}
+        operatorMsg={operatorMsg}
+        lastSettlement={lastSettlement}
+        accuracy={accuracy}
+        ledger={ledger}
+      />
+    );
+  }
+
   return (
     <div className="arena">
       <header className="arena-header">
@@ -277,6 +322,9 @@ export default function RingsideArena() {
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {isLive && <span className="badge-live">LIVE</span>}
           {matchup && <span className={`status-pill status-${matchup.status}`}>{matchup.status}</span>}
+          <button className="btn" onClick={toggleShowMode}>
+            SHOW
+          </button>
         </div>
       </header>
 

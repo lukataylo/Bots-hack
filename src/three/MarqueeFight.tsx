@@ -303,10 +303,10 @@ function Scene({ script, fighterA, fighterB }: MarqueeFightProps) {
     punch.current = THREE.MathUtils.lerp(punch.current, 0, 0.04);
     orbitAngle.current += rawDelta * (frozen.current ? 0.12 : 0.18);
     const focus = frozen.current ? (script.winner === "A" ? a.pos : b.pos) : new THREE.Vector3().addVectors(a.pos, b.pos).multiplyScalar(0.5);
-    const radius = (frozen.current ? 5.5 : 7.5) - punch.current * 2;
+    const radius = (frozen.current ? 4.2 : 5.4) - punch.current * 1.6;
     camera.position.set(
       focus.x + Math.cos(orbitAngle.current) * radius,
-      focus.y + 3.2 - punch.current,
+      focus.y + 2.3 - punch.current * 0.8,
       focus.z + Math.sin(orbitAngle.current) * radius,
     );
     camera.lookAt(focus.x, focus.y + 0.5, focus.z);
@@ -319,8 +319,8 @@ function Scene({ script, fighterA, fighterB }: MarqueeFightProps) {
     <>
       <color attach="background" args={[BG]} />
       <fog attach="fog" args={[BG, 8, 28]} />
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[4, 8, 4]} intensity={1.1} />
+      <ambientLight intensity={0.85} />
+      <directionalLight position={[4, 8, 4]} intensity={1.8} />
       <pointLight ref={aGlowRef} position={[-3, 1.5, 2]} color={ACCENT_A} intensity={1.5} distance={6} />
       <pointLight ref={bGlowRef} position={[3, 1.5, -2]} color={ACCENT_B} intensity={1.5} distance={6} />
       <pointLight position={[-6, 0.5, 0]} color={ROSSO} intensity={2} distance={5} />
