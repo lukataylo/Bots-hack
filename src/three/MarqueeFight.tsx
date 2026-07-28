@@ -6,7 +6,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { MeshReflectorMaterial, Grid } from "@react-three/drei";
 import type { FighterProfile } from "@/lib/types";
 import type { MarqueeScript, MarqueeFrame, MarqueeEvent } from "./types";
-import { buildParts, botScale, type MatKind, type PrimGeom } from "./rig";
+import { buildParts, botScale, type PartSpec, type PrimGeom } from "./rig";
 
 export interface MarqueeFightProps {
   script: MarqueeScript;
@@ -24,14 +24,27 @@ const SLOWMO_RATE = 0.25;
 const SLOWMO_REAL_SECONDS = 0.6;
 
 function GeomEl({ geom }: { geom: PrimGeom }) {
-  if (geom.type === "box") return <boxGeometry args={geom.args} />;
-  return <cylinderGeometry args={geom.args} />;
+  switch (geom.type) {
+    case "box":
+      return <boxGeometry args={geom.args} />;
+    case "cone":
+      return <coneGeometry args={geom.args} />;
+    case "sphere":
+      return <sphereGeometry args={geom.args} />;
+    case "torus":
+      return <torusGeometry args={geom.args} />;
+    default:
+      return <cylinderGeometry args={geom.args} />;
+  }
 }
 
 /** Static assembled bot body (no scatter animation) used inside the marquee replay. */
 function BotBody({ profile, accent }: { profile: FighterProfile; accent: string }) {
   const scale = botScale(profile.weight_kg);
-  const parts = useMemo(() => buildParts(profile.weapon_class, scale), [profile.weapon_class, scale]);
+  const parts = useMemo(
+    () => buildParts(profile.weapon_class, scale, profile.name),
+    [profile.weapon_class, scale, profile.name],
+  );
 
   // Real livery when scraped (profile.palette), else readable bright defaults.
   const chassisColor = profile.palette?.primary ?? "#454e60";
@@ -69,7 +82,24 @@ function BotBody({ profile, accent }: { profile: FighterProfile; accent: string 
       }),
     [accent, weaponColor],
   );
-  const matFor = (kind: MatKind) => (kind === "metal" ? metalMat : kind === "accent" ? accentMat : weaponMat);
+  // Signature rigs paint their own parts; scraped-palette materials stay the fallback.
+  const liveryMats = useMemo(() => new Map<string, THREE.MeshStandardMaterial>(), [accent]);
+  const matFor = (p: PartSpec) => {
+    if (!p.color) return p.material === "metal" ? metalMat : p.material === "accent" ? accentMat : weaponMat;
+    const key = `${p.color}|${p.material}`;
+    let m = liveryMats.get(key);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        color: p.color,
+        metalness: p.material === "weapon" ? 0.9 : 0.5,
+        roughness: p.material === "weapon" ? 0.2 : 0.45,
+        emissive: accent,
+        emissiveIntensity: p.material === "accent" ? 0.25 : 0,
+      });
+      liveryMats.set(key, m);
+    }
+    return m;
+  };
 
   const spinRefs = useRef<Array<THREE.Group | null>>([]);
   useFrame((_, delta) => {
@@ -85,7 +115,7 @@ function BotBody({ profile, accent }: { profile: FighterProfile; accent: string 
       {parts.map((p, i) => (
         <group key={p.key} position={p.position} rotation={p.rotation ?? [0, 0, 0]}>
           <group ref={(el) => { spinRefs.current[i] = el; }}>
-            <mesh material={matFor(p.material)}>
+            <mesh material={matFor(p)}>
               <GeomEl geom={p.geom} />
             </mesh>
           </group>

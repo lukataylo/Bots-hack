@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { FighterProfile } from "@/lib/types";
-import { buildParts, botScale, clamp, seeded, type MatKind, type PrimGeom } from "./rig";
+import { buildParts, botScale, clamp, seeded, type PartSpec, type PrimGeom } from "./rig";
 
 export interface BotAssemblyProps {
   profile: FighterProfile;
@@ -21,13 +21,26 @@ function easeOutBack(x: number): number {
 }
 
 function GeomEl({ geom }: { geom: PrimGeom }) {
-  if (geom.type === "box") return <boxGeometry args={geom.args} />;
-  return <cylinderGeometry args={geom.args} />;
+  switch (geom.type) {
+    case "box":
+      return <boxGeometry args={geom.args} />;
+    case "cone":
+      return <coneGeometry args={geom.args} />;
+    case "sphere":
+      return <sphereGeometry args={geom.args} />;
+    case "torus":
+      return <torusGeometry args={geom.args} />;
+    default:
+      return <cylinderGeometry args={geom.args} />;
+  }
 }
 
 export default function BotAssembly({ profile, accent, assembling = false }: BotAssemblyProps) {
   const scale = botScale(profile.weight_kg);
-  const parts = useMemo(() => buildParts(profile.weapon_class, scale), [profile.weapon_class, scale]);
+  const parts = useMemo(
+    () => buildParts(profile.weapon_class, scale, profile.name),
+    [profile.weapon_class, scale, profile.name],
+  );
 
   // Real livery when the scrape found one: chassis wears the bot's actual dominant color,
   // weapon its secondary. Team accent stays on trim/glow so sides remain readable.
@@ -66,7 +79,24 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
       }),
     [accent, weaponColor],
   );
-  const matFor = (kind: MatKind) => (kind === "metal" ? metalMat : kind === "accent" ? accentMat : weaponMat);
+  // Signature rigs paint their own parts; scraped-palette materials stay the fallback.
+  const liveryMats = useMemo(() => new Map<string, THREE.MeshStandardMaterial>(), [accent]);
+  const matFor = (p: PartSpec) => {
+    if (!p.color) return p.material === "metal" ? metalMat : p.material === "accent" ? accentMat : weaponMat;
+    const key = `${p.color}|${p.material}`;
+    let m = liveryMats.get(key);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        color: p.color,
+        metalness: p.material === "weapon" ? 0.9 : 0.5,
+        roughness: p.material === "weapon" ? 0.2 : 0.45,
+        emissive: accent,
+        emissiveIntensity: p.material === "accent" ? 0.22 : 0,
+      });
+      liveryMats.set(key, m);
+    }
+    return m;
+  };
 
   // per-part scatter offsets (stable for the lifetime of this part list)
   const scatter = useMemo(
@@ -131,7 +161,8 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
         let rx = p.rotation?.[0] ?? 0;
         const ry = p.rotation?.[1] ?? 0;
         const rz = p.rotation?.[2] ?? 0;
-        if (p.idleAmp) rx += Math.sin(elapsed * 1.4 + i) * p.idleAmp;
+        // shared phase so multi-part assemblies (jaws, axe arms) swing as one
+        if (p.idleAmp) rx += Math.sin(elapsed * 1.4) * p.idleAmp;
         g.rotation.set(rx, ry, rz);
       }
 
@@ -149,7 +180,7 @@ export default function BotAssembly({ profile, accent, assembling = false }: Bot
       {parts.map((p, i) => (
         <group key={p.key} ref={(el) => { groupRefs.current[i] = el; }}>
           <group ref={(el) => { spinRefs.current[i] = el; }}>
-            <mesh material={matFor(p.material)} castShadow receiveShadow>
+            <mesh material={matFor(p)} castShadow receiveShadow>
               <GeomEl geom={p.geom} />
             </mesh>
           </group>
