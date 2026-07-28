@@ -213,9 +213,16 @@ export default function RingsideArena() {
     setBusy(true);
     setScoutError(null);
     setMatchup(null);
-    setTrace([]);
     setMarqueeScript(null);
     setLastSettlement(null);
+    // Instant feedback: the panel reacts on click, before the first server step lands.
+    setTrace([{
+      id: crypto.randomUUID(),
+      kind: "resolve",
+      label: `Dispatching scout run: ${fighterAName.trim()} vs ${fighterBName.trim()}`,
+      detail: "connecting live trace stream",
+      at: new Date().toISOString(),
+    }]);
     const jid = crypto.randomUUID();
     setJobId(jid);
     try {

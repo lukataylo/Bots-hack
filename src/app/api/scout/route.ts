@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
   const jobId = typeof body?.jobId === 'string' && body.jobId.length >= 8 ? body.jobId : randomUUID();
   createJob(jobId);
   const onStep = (s: TraceStep) => pushStep(jobId, s);
+  onStep(step('resolve', `Scout run accepted: ${fighterA} vs ${fighterB}`, 'engaging scrape pipeline'));
 
   let dataMod: typeof import('@/lib/data/fuse');
   try {
@@ -36,14 +37,38 @@ export async function POST(req: NextRequest) {
   }
   const { resolveAndFuse, fightRecordsFor, AbstainError } = dataMod;
 
+  // Pre-warm fast path: a profile live-scraped earlier tonight is served from cache with an
+  // honest label, plus one fresh Bright Data call as the live receipt. Cold names take the
+  // full live scrape path.
+  const CACHE_FRESH_MS = 6 * 60 * 60 * 1000;
+  const { getCachedProfile } = await import('@/lib/db');
+  const resolveOne = async (name: string): Promise<FighterProfile> => {
+    const cached = getCachedProfile(name);
+    if (cached && Date.now() - Date.parse(cached.fetchedAt) < CACHE_FRESH_MS) {
+      const ageMin = Math.max(1, Math.round((Date.now() - Date.parse(cached.fetchedAt)) / 60000));
+      onStep(step('fuse', `Pre-warmed: "${cached.profile.name}" was live-scraped ${ageMin}m ago tonight, serving that profile`, cached.profile.source_urls[0]));
+      // One fresh live call as the on-stage receipt, capped at 6s so a slow proxy never
+      // stalls the line post. If it wins the race its Bright Data hit shows in the trace.
+      try {
+        const { search, FANDOM } = await import('@/lib/data/mediawiki');
+        await Promise.race([
+          search(FANDOM, cached.profile.name, 1, onStep),
+          new Promise((resolve) => { setTimeout(resolve, 6000); }),
+        ]);
+      } catch {
+        /* receipt call is best-effort */
+      }
+      return cached.profile;
+    }
+    const p = await resolveAndFuse(name, onStep);
+    await fightRecordsFor(name, p, onStep);
+    return p;
+  };
+
   let profileA: FighterProfile;
   let profileB: FighterProfile;
   try {
-    // Both fighters scrape in parallel; fightRecordsFor persists rows to bot_records itself.
-    [profileA, profileB] = await Promise.all([
-      resolveAndFuse(fighterA, onStep).then(async (p) => { await fightRecordsFor(fighterA, p, onStep); return p; }),
-      resolveAndFuse(fighterB, onStep).then(async (p) => { await fightRecordsFor(fighterB, p, onStep); return p; }),
-    ]);
+    [profileA, profileB] = await Promise.all([resolveOne(fighterA), resolveOne(fighterB)]);
   } catch (err) {
     if (err instanceof AbstainError) {
       onStep(step('abstain', err.message));

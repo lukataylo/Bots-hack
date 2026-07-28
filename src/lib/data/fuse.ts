@@ -127,7 +127,7 @@ export async function resolveAndFuse(name: string, onStep: (s: TraceStep) => voi
   const { fetchBotAppearance } = await import('./botimage');
   const appearance = await fetchBotAppearance(fandomPage.title, onStep);
 
-  return {
+  const profile: FighterProfile = {
     name: fandomPage.title,
     weapon_class: weaponClass,
     weight_kg: weightKg,
@@ -139,6 +139,16 @@ export async function resolveAndFuse(name: string, onStep: (s: TraceStep) => voi
     photo_url: appearance.photo_url,
     palette: appearance.palette,
   };
+
+  // Persist for the pre-warm fast path (scout route serves cached profiles with an honest label).
+  try {
+    const { upsertProfile } = await import('../db');
+    upsertProfile(profile);
+  } catch {
+    /* cache is best-effort */
+  }
+
+  return profile;
 }
 
 /**

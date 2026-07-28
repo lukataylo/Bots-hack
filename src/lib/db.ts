@@ -57,6 +57,11 @@ export function getDb(): Database.Database {
       correct INTEGER NOT NULL,
       settled_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS profiles (
+      name_key TEXT PRIMARY KEY,
+      profile TEXT NOT NULL,
+      fetched_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS elo_ledger (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,
       archetype TEXT NOT NULL,
@@ -184,6 +189,20 @@ export function appendEloLedger(entry: { archetype: string; ratingBefore: number
     INSERT INTO elo_ledger (archetype, rating_before, rating_after, matchup_id, at)
     VALUES (?, ?, ?, ?, ?)
   `).run(entry.archetype, entry.ratingBefore, entry.ratingAfter, entry.matchupId, new Date().toISOString());
+}
+
+export function upsertProfile(profile: FighterProfile): void {
+  getDb().prepare(`
+    INSERT INTO profiles (name_key, profile, fetched_at) VALUES (?, ?, ?)
+    ON CONFLICT(name_key) DO UPDATE SET profile = excluded.profile, fetched_at = excluded.fetched_at
+  `).run(profile.name.toLowerCase(), JSON.stringify(profile), new Date().toISOString());
+}
+
+export function getCachedProfile(name: string): { profile: FighterProfile; fetchedAt: string } | null {
+  const row = getDb().prepare('SELECT profile, fetched_at FROM profiles WHERE name_key = ?')
+    .get(name.toLowerCase().trim()) as { profile: string; fetched_at: string } | undefined;
+  if (!row) return null;
+  return { profile: JSON.parse(row.profile) as FighterProfile, fetchedAt: row.fetched_at };
 }
 
 export function eloLedger(): Array<{ seq: number; archetype: string; rating_before: number; rating_after: number; matchup_id: string; at: string }> {
