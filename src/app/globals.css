@@ -474,7 +474,6 @@ select {
 /* QR: no white anywhere; gold module code on the dark panel with a gold frame */
 .qr-wrap {
   background: #F5B426;
-  border: 2px solid var(--gold);
   border-radius: 8px;
   padding: 6px;
   display: inline-flex;
@@ -482,7 +481,6 @@ select {
 
 .show-qr-wrap {
   background: #F5B426;
-  border: 3px solid var(--gold);
   border-radius: 12px;
   padding: 12px;
   display: inline-flex;

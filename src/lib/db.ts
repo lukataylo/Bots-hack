@@ -199,8 +199,10 @@ export function upsertProfile(profile: FighterProfile): void {
 }
 
 export function getCachedProfile(name: string): { profile: FighterProfile; fetchedAt: string } | null {
-  const row = getDb().prepare('SELECT profile, fetched_at FROM profiles WHERE name_key = ?')
-    .get(name.toLowerCase().trim()) as { profile: string; fetched_at: string } | undefined;
+  const key = name.toLowerCase().trim();
+  // Wiki titles sometimes collapse spaces ("Mad Catter" resolves as "MadCatter"), so try both.
+  const row = getDb().prepare('SELECT profile, fetched_at FROM profiles WHERE name_key = ? OR name_key = ? LIMIT 1')
+    .get(key, key.replace(/\s+/g, '')) as { profile: string; fetched_at: string } | undefined;
   if (!row) return null;
   return { profile: JSON.parse(row.profile) as FighterProfile, fetchedAt: row.fetched_at };
 }
