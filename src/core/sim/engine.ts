@@ -1,12 +1,25 @@
 // Headless deterministic Monte Carlo fight sim on @dimforge/rapier3d-compat (Node-safe, async
 // init, inlined wasm — no native build step). Coarse model: two rigid-body boxes sized/massed
-// from weight_kg, archetype-flavoured strikes drain an HP pool by received impulse. Same seed
-// -> same fight, always (mulberry32 PRNG drives every stochastic decision).
+// from weight_kg circle each other, trade archetype-flavoured blows on an engagement/cooldown
+// cadence, and an HP pool drains until KO or the sim-time cap (judges' decision on remaining HP).
+// Same seed -> same fight, always (mulberry32 PRNG drives every stochastic decision).
 //
-// Perf strategy: 10Hz physics ticks, hard-capped at 60 sim-seconds (600 ticks) of wall-clock
-// physics work per fight so 1000 runs stays well under budget. Reported durations (SimResult
-// only — NOT marquee frame timestamps) are scaled up by REPORT_SCALE so a fast-resolving coarse
-// fight still reads as "settled within the 150s judges'-decision window" the brief describes.
+// BALANCE MODEL (the important bit): who wins each engagement is decided by a roll driven
+// strongly by the passed MatchupOdds (see `engagementWinProbA`), NOT by archetype identity.
+// params.ts intentionally keeps average impulse per landed blow close across archetypes so no
+// archetype is a bigger hitter "for free" — archetype only controls the FLAVOR of a landed blow
+// (impulse spread, crit chance, launch chance/size). This is what makes a 0.5/0.5 abstain odds
+// pairing land near a 50/50 winShare regardless of which two archetypes are fighting, and makes
+// a 0.66 odds pairing land close to a 0.66 winShare, while every archetype (including flippers
+// launching heavier spinners) keeps a genuine, structural path to a KO via the launch mechanic.
+//
+// PACING: engagements happen on a flat per-tick chance while not in cooldown; landing a blow
+// triggers a cooldown (repositioning) window before the next engagement can happen. Combined
+// with modest per-hit damage this targets a 20-60 sim-second median fight, comfortably clearing
+// the "marquee needs >= 8s of frames" requirement.
+//
+// Perf: 10Hz physics ticks, hard-capped at 90 sim-seconds (900 ticks) so 1000 runs stays well
+// under the 10s Monte Carlo budget even with the slower pacing.
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import type { FighterProfile, MatchupOdds, SimResult } from '../../lib/types';
@@ -15,12 +28,15 @@ import { mulberry32, jitteredMean, type Rng } from './rng';
 
 const TICK_HZ = 10;
 const DT = 1 / TICK_HZ;
-const MAX_TICKS = 600; // 60 sim-seconds hard cap, keeps 1000-run Monte Carlo fast
-const JD_WINDOW_SEC = 150; // nominal judges'-decision ceiling described in the brief
-const REPORT_SCALE = JD_WINDOW_SEC / (MAX_TICKS * DT); // 150 / 60 = 2.5
+const MAX_TICKS = 900; // 90 sim-second hard cap — headroom above the 20-60s median target
 
-const DAMAGE_SCALE = 0.09; // HP lost per unit impulse (N.s)
-const BIAS_STRENGTH = 0.35; // how much archetype Elo odds nudge strike chance, mild by design
+const ENGAGEMENT_CHANCE = 0.16; // per-tick chance of a clash while not in cooldown
+const COOLDOWN_MIN_TICKS = 9; // ~0.9s repositioning after a landed blow
+const COOLDOWN_MAX_TICKS = 22; // ~2.2s
+
+const DAMAGE_SCALE = 0.032; // HP lost per unit impulse (N.s) on a base landed blow
+const LAUNCH_DAMAGE_SCALE = 0.045; // extra HP lost per unit launchImpulse on a launch event
+const BIAS_K = 1.7; // amplifies (odds.winProbA - 0.5) into the per-engagement win roll
 const REFERENCE_WEIGHT_KG = 100;
 
 let initPromise: Promise<void> | null = null;
@@ -62,11 +78,16 @@ function computeHalfExtents(weightKg: number | null): [number, number, number] {
   return [0.5 * scale, 0.35 * scale, 0.5 * scale];
 }
 
-/** Mild bias toward the archetype favoured by the matchup odds. Neutral (1.0) when abstain. */
-function oddsBias(side: 'A' | 'B', odds: MatchupOdds): number {
-  if (odds.abstain) return 1;
-  const p = side === 'A' ? odds.winProbA : odds.winProbB;
-  return clamp(1 + (p - 0.5) * 2 * BIAS_STRENGTH, 0.6, 1.4);
+/**
+ * Per-engagement probability that A wins the exchange. This is the ONLY place matchup odds
+ * influence who wins — deliberately amplified (BIAS_K > 1) because a fixed per-engagement
+ * probability gets damped by the HP race before it turns into a winShare (a coinflip-per-hit
+ * process doesn't preserve its own probability 1:1 across a multi-hit race). When odds.abstain
+ * (winProbA === winProbB === 0.5) this returns exactly 0.5 — a fair coin.
+ */
+function engagementWinProbA(odds: MatchupOdds): number {
+  if (odds.abstain) return 0.5;
+  return clamp(0.5 + (odds.winProbA - 0.5) * BIAS_K, 0.05, 0.95);
 }
 
 export interface FightEvent {
@@ -84,7 +105,7 @@ export interface MarqueeFrame {
 export interface FightRunResult {
   winner: 'A' | 'B';
   method: 'ko' | 'jd';
-  /** Raw, unscaled sim duration in seconds (ticks * DT) — what the physics actually ran. */
+  /** Raw sim duration in seconds (ticks * DT) — exactly what the physics ran, unscaled. */
   durationSec: number;
   seed: number;
   frames: MarqueeFrame[] | null;
@@ -118,7 +139,7 @@ export async function runFight(
   // 0.19.3 (verified empirically — body.mass() stays at the density-derived default). Mass MUST
   // be set on the ColliderDesc *before* world.createCollider().
   const bodyA = world.createRigidBody(
-    RAPIER.RigidBodyDesc.dynamic().setTranslation(-1.6, hyA + 0.02, 0).setLinearDamping(0.4).setAngularDamping(0.6),
+    RAPIER.RigidBodyDesc.dynamic().setTranslation(-1.6, hyA + 0.02, 0).setLinearDamping(0.5).setAngularDamping(0.7),
   );
   world.createCollider(
     RAPIER.ColliderDesc.cuboid(hxA, hyA, hzA).setFriction(0.6).setRestitution(0.1).setMass(a.weight_kg ?? REFERENCE_WEIGHT_KG),
@@ -126,7 +147,7 @@ export async function runFight(
   );
 
   const bodyB = world.createRigidBody(
-    RAPIER.RigidBodyDesc.dynamic().setTranslation(1.6, hyB + 0.02, 0).setLinearDamping(0.4).setAngularDamping(0.6),
+    RAPIER.RigidBodyDesc.dynamic().setTranslation(1.6, hyB + 0.02, 0).setLinearDamping(0.5).setAngularDamping(0.7),
   );
   world.createCollider(
     RAPIER.ColliderDesc.cuboid(hxB, hyB, hzB).setFriction(0.6).setRestitution(0.1).setMass(b.weight_kg ?? REFERENCE_WEIGHT_KG),
@@ -135,29 +156,23 @@ export async function runFight(
 
   const paramsA = paramsFor(a.weapon_class);
   const paramsB = paramsFor(b.weapon_class);
-  const biasA = oddsBias('A', odds);
-  const biasB = oddsBias('B', odds);
+  const pAeff = engagementWinProbA(odds);
 
   let hpA = computeHP(a.weight_kg);
   let hpB = computeHP(b.weight_kg);
-  let controlTicksA = 0;
-  let controlTicksB = 0;
 
   const frames: MarqueeFrame[] | null = opts.recordFrames ? [] : null;
   let winner: 'A' | 'B' | null = null;
   let method: 'ko' | 'jd' = 'jd';
   let tick = 0;
+  let cooldownTicks = 0;
 
-  const strike = (
+  const landBlow = (
+    landingSide: 'A' | 'B',
     attackerBody: RAPIER.RigidBody,
     defenderBody: RAPIER.RigidBody,
     params: ReturnType<typeof paramsFor>,
-    bias: number,
-    suppressed: boolean,
   ): { events: FightEvent[]; damage: number } => {
-    const effectiveChance = params.strikeChance * bias * (suppressed ? 0.4 : 1);
-    if (rng() >= effectiveChance) return { events: [], damage: 0 };
-
     const impulseMag = jitteredMean(rng, params.impulseMean, params.impulseStd);
     const isCrit = rng() < params.critChance;
     const isLaunch = rng() < params.launchChance;
@@ -169,7 +184,7 @@ export async function runFight(
     const horizMag = Math.hypot(dx, dz) || 1;
     const dirX = dx / horizMag;
     const dirZ = dz / horizMag;
-    const vertical = isLaunch ? params.launchImpulse : impulseMag * 0.15;
+    const vertical = isLaunch ? params.launchImpulse : impulseMag * 0.12;
 
     defenderBody.applyImpulseAtPoint(
       { x: dirX * impulseMag, y: vertical, z: dirZ * impulseMag },
@@ -177,32 +192,42 @@ export async function runFight(
       true,
     );
 
-    const damage = impulseMag * DAMAGE_SCALE * (isCrit ? params.critMultiplier : 1);
+    let damage = impulseMag * DAMAGE_SCALE * (isCrit ? params.critMultiplier : 1);
     const events: FightEvent[] = [{ type: 'hit', magnitude: Math.round(impulseMag * 100) / 100 }];
-    if (isLaunch) events.push({ type: 'launch', magnitude: Math.round(vertical * 100) / 100 });
+    if (isLaunch) {
+      damage += params.launchImpulse * LAUNCH_DAMAGE_SCALE;
+      events.push({ type: 'launch', magnitude: Math.round(vertical * 100) / 100 });
+    }
 
     return { events, damage };
+  };
+
+  // Gentle circling drift during cooldown so the marquee replay stays visually alive between
+  // exchanges instead of freezing — purely cosmetic, far too small to affect HP.
+  const applyCircling = () => {
+    const angle = tick * 0.15;
+    bodyA.applyImpulseAtPoint({ x: Math.cos(angle) * 1.5, y: 0, z: Math.sin(angle) * 1.5 }, bodyA.translation(), true);
+    bodyB.applyImpulseAtPoint({ x: Math.cos(angle + Math.PI) * 1.5, y: 0, z: Math.sin(angle + Math.PI) * 1.5 }, bodyB.translation(), true);
   };
 
   while (tick < MAX_TICKS && winner === null) {
     const tickEvents: FightEvent[] = [];
 
-    const resA = strike(bodyA, bodyB, paramsA, biasA, controlTicksA > 0);
-    if (resA.events.length) {
-      hpB -= resA.damage;
-      tickEvents.push(...resA.events);
-      if (paramsA.controlFactor > 0) controlTicksB = Math.max(controlTicksB, Math.round(paramsA.controlFactor * 10));
-    }
+    if (cooldownTicks > 0) {
+      cooldownTicks -= 1;
+      applyCircling();
+    } else if (rng() < ENGAGEMENT_CHANCE) {
+      const landingSide: 'A' | 'B' = rng() < pAeff ? 'A' : 'B';
+      const res = landingSide === 'A'
+        ? landBlow('A', bodyA, bodyB, paramsA)
+        : landBlow('B', bodyB, bodyA, paramsB);
 
-    const resB = strike(bodyB, bodyA, paramsB, biasB, controlTicksB > 0);
-    if (resB.events.length) {
-      hpA -= resB.damage;
-      tickEvents.push(...resB.events);
-      if (paramsB.controlFactor > 0) controlTicksA = Math.max(controlTicksA, Math.round(paramsB.controlFactor * 10));
-    }
+      if (landingSide === 'A') hpB -= res.damage;
+      else hpA -= res.damage;
+      tickEvents.push(...res.events);
 
-    if (controlTicksA > 0) controlTicksA -= 1;
-    if (controlTicksB > 0) controlTicksB -= 1;
+      cooldownTicks = COOLDOWN_MIN_TICKS + Math.floor(rng() * (COOLDOWN_MAX_TICKS - COOLDOWN_MIN_TICKS + 1));
+    }
 
     world.step();
 
@@ -258,8 +283,9 @@ function median(nums: number[]): number {
 /**
  * simulate — headless Monte Carlo. Same (fighterA, fighterB, odds) always produces the same
  * SimResult: per-run seeds fan out deterministically from matchupSeed(a, b), no wall-clock or
- * external randomness involved. Archetype strike chances are mildly biased by `odds` (see
- * oddsBias) but each run's outcome still carries real variance from the seeded RNG.
+ * external randomness involved. Each run's per-engagement outcome is a real coinflip around
+ * engagementWinProbA(odds), so individual fights carry genuine variance even though the
+ * aggregate winShare tracks the passed odds closely.
  */
 export async function simulate(
   a: FighterProfile,
@@ -303,8 +329,7 @@ export async function simulate(
     }
   }
 
-  const rawMedianDuration = median(outcomes.map((o) => o.durationSec));
-  const medianDurationSec = Math.min(JD_WINDOW_SEC, Math.round(rawMedianDuration * REPORT_SCALE * 100) / 100);
+  const medianDurationSec = Math.round(median(outcomes.map((o) => o.durationSec)) * 100) / 100;
 
   return {
     runs,

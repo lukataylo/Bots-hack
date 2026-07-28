@@ -15,14 +15,14 @@ function step(kind: TraceStep['kind'], label: string, detail?: string): TraceSte
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null) as { fighterA?: unknown; fighterB?: unknown } | null;
+  const body = await req.json().catch(() => null) as { fighterA?: unknown; fighterB?: unknown; jobId?: unknown } | null;
   const fighterA = typeof body?.fighterA === 'string' ? body.fighterA.trim() : '';
   const fighterB = typeof body?.fighterB === 'string' ? body.fighterB.trim() : '';
   if (!fighterA || !fighterB) {
     return NextResponse.json({ error: 'fighterA and fighterB are required' }, { status: 400 });
   }
 
-  const jobId = randomUUID();
+  const jobId = typeof body?.jobId === 'string' && body.jobId.length >= 8 ? body.jobId : randomUUID();
   createJob(jobId);
   const onStep = (s: TraceStep) => pushStep(jobId, s);
 
@@ -39,19 +39,19 @@ export async function POST(req: NextRequest) {
   let profileA: FighterProfile;
   let profileB: FighterProfile;
   try {
-    profileA = await resolveAndFuse(fighterA, onStep);
-    // fightRecordsFor persists rows to bot_records itself (upsertBotRecords under the hood).
-    await fightRecordsFor(fighterA, profileA, onStep);
-
-    profileB = await resolveAndFuse(fighterB, onStep);
-    await fightRecordsFor(fighterB, profileB, onStep);
+    // Both fighters scrape in parallel; fightRecordsFor persists rows to bot_records itself.
+    [profileA, profileB] = await Promise.all([
+      resolveAndFuse(fighterA, onStep).then(async (p) => { await fightRecordsFor(fighterA, p, onStep); return p; }),
+      resolveAndFuse(fighterB, onStep).then(async (p) => { await fightRecordsFor(fighterB, p, onStep); return p; }),
+    ]);
   } catch (err) {
-    finishJob(jobId);
     if (err instanceof AbstainError) {
       onStep(step('abstain', err.message));
+      finishJob(jobId);
       return NextResponse.json({ error: 'insufficient evidence', reason: err.message, jobId }, { status: 422 });
     }
     onStep(step('error', 'scouting failed', String(err)));
+    finishJob(jobId);
     return NextResponse.json({ error: 'scouting failed', jobId }, { status: 500 });
   }
 

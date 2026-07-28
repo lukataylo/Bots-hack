@@ -39,7 +39,7 @@ export async function fetchViaBrightData(url: string, onStep?: OnStep): Promise<
   const zone = process.env.BRIGHTDATA_ZONE;
 
   if (!token) {
-    onStep?.(newStep('error', 'Bright Data token not configured — direct fetch path', url));
+    onStep?.(newStep('error', 'Bright Data token not configured, direct fetch path', url));
     return directFetch(url);
   }
 
@@ -65,7 +65,7 @@ export async function fetchViaBrightData(url: string, onStep?: OnStep): Promise<
     ));
     return body;
   } catch (err) {
-    onStep?.(newStep('error', 'Bright Data request errored — falling back to direct fetch', err instanceof Error ? err.message : String(err)));
+    onStep?.(newStep('error', 'Bright Data request errored, falling back to direct fetch', err instanceof Error ? err.message : String(err)));
     return directFetch(url);
   }
 }

@@ -106,7 +106,7 @@ export async function resolveAndFuse(name: string, onStep: (s: TraceStep) => voi
     'crosscheck',
     wikiPage
       ? `Found ${WIKIPEDIA.name} corroboration at "${wikiPage.title}"`
-      : `No ${WIKIPEDIA.name} article found for "${fandomPage.title}" (expected — most robots lack one)`,
+      : `No ${WIKIPEDIA.name} article found for "${fandomPage.title}" (expected, most robots lack one)`,
   );
 
   const segments = parseFightNarratives(fandomPage.wikitext, fandomPage.title);

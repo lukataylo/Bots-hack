@@ -190,16 +190,16 @@ export default function RingsideArena() {
     setMatchup(null);
     setTrace([]);
     setMarqueeScript(null);
-    setJobId(null);
     setLastSettlement(null);
+    const jid = crypto.randomUUID();
+    setJobId(jid);
     try {
       const res = await fetch("/api/scout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fighterA: fighterAName.trim(), fighterB: fighterBName.trim() }),
+        body: JSON.stringify({ fighterA: fighterAName.trim(), fighterB: fighterBName.trim(), jobId: jid }),
       });
       const data = await res.json();
-      if (data.jobId) setJobId(data.jobId);
       if (!res.ok) {
         setScoutError(data.reason || data.error || `Scouting failed (${res.status})`);
         return;
