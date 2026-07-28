@@ -181,8 +181,7 @@ export default function ShowMode(props: ShowModeProps) {
     <div className="show-stage">
       <div className="show-topbar">
         <span className="show-brand">
-          <img src="/assets/logo.png" alt="" className="show-brand-logo" />
-          RINGSIDE ARENA
+          <img src="/assets/logo.png" alt="Ringside Arena" className="show-brand-logo" />
         </span>
         <div className="show-dots">
           {STAGES.map((s, i) => (

@@ -194,10 +194,9 @@ select {
 }
 
 .wordmark-logo {
-  width: 34px;
-  height: 34px;
-  object-fit: cover;
-  border-radius: 8px;
+  height: 72px;
+  width: auto;
+  object-fit: contain;
   filter: drop-shadow(0 0 6px rgba(245, 180, 38, 0.5));
 }
 
@@ -1047,8 +1046,8 @@ select {
 }
 
 .show-brand-logo {
-  width: 26px;
-  height: 26px;
+  height: 34px;
+  width: auto;
   object-fit: contain;
 }
 

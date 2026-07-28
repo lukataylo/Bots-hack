@@ -103,9 +103,10 @@ export default function RingsideArena() {
 
   const traceLogRef = useRef<HTMLDivElement | null>(null);
 
-  const [showMode, setShowMode] = useState(() => (typeof window !== "undefined" ? window.location.hash === "#show" : false));
+  const [showMode, setShowMode] = useState(false);
 
   useEffect(() => {
+    setShowMode(window.location.hash === "#show");
     const onHashChange = () => setShowMode(window.location.hash === "#show");
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -333,8 +334,7 @@ export default function RingsideArena() {
     <div className="arena">
       <header className="arena-header">
         <div className="wordmark display">
-          <img src="/assets/logo.png" alt="" className="wordmark-logo" />
-          RINGSIDE ARENA
+          <img src="/assets/logo.png" alt="Ringside Arena" className="wordmark-logo" />
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           {matchup?.hashSha256 && (
