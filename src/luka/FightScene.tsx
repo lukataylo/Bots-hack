@@ -22,6 +22,8 @@ export interface Tick { t: number; hpA: number; hpB: number; hits: number }
 
 export interface FightSceneProps {
   recording: BoutRecording;
+  colorA?: string;
+  colorB?: string;
   playing?: boolean;
   /** Replay counter. Bump it to restart the bout from zero. */
   runKey?: number;
@@ -29,7 +31,7 @@ export interface FightSceneProps {
   onEnd?: () => void;
 }
 
-export function FightScene({ recording, playing = true, runKey = 0, onTick, onEnd }: FightSceneProps) {
+export function FightScene({ recording, colorA, colorB, playing = true, runKey = 0, onTick, onEnd }: FightSceneProps) {
   return (
     <Canvas
       shadows="percentage"
@@ -44,12 +46,12 @@ export function FightScene({ recording, playing = true, runKey = 0, onTick, onEn
       }}
     >
       <Arena />
-      <Replay recording={recording} playing={playing} runKey={runKey} onTick={onTick} onEnd={onEnd} />
+      <Replay recording={recording} colorA={colorA} colorB={colorB} playing={playing} runKey={runKey} onTick={onTick} onEnd={onEnd} />
     </Canvas>
   );
 }
 
-function Replay({ recording, playing, runKey, onTick, onEnd }: Required<Pick<FightSceneProps, 'recording' | 'playing' | 'runKey'>> & Pick<FightSceneProps, 'onTick' | 'onEnd'>) {
+function Replay({ recording, colorA, colorB, playing, runKey, onTick, onEnd }: Required<Pick<FightSceneProps, 'recording' | 'playing' | 'runKey'>> & Pick<FightSceneProps, 'onTick' | 'onEnd' | 'colorA' | 'colorB'>) {
   const { frames, hits, specA, specB } = recording;
   const a = useRef<BotFrame>({ ...frames[0].a });
   const b = useRef<BotFrame>({ ...frames[0].b });
@@ -128,8 +130,8 @@ function Replay({ recording, playing, runKey, onTick, onEnd }: Required<Pick<Fig
 
   return (
     <>
-      <Bot spec={specA} color={CORNER_A} stateRef={a} />
-      <Bot spec={specB} color={CORNER_B} stateRef={b} />
+      <Bot spec={specA} color={colorA ?? CORNER_A} stateRef={a} />
+      <Bot spec={specB} color={colorB ?? CORNER_B} stateRef={b} />
       <pointLight ref={flash} color="#ffc98a" intensity={0} distance={9} />
       <Sparks ref={sparks} />
     </>

@@ -24,7 +24,7 @@ const DT = 1 / 60;
 const MAX_SEC = 180; // three minute bout
 const HP_PER_KG = 0.8; // heavyweight (113kg) with 1.0 armour => ~90 hp
 const REF_MASS = 113; // heavyweight, kg
-const DMG_SCALE = 0.16; // full-charge big spinner lands ~12 hp: an eight-to-ten hit war
+const DMG_SCALE = 0.12; // full-charge big spinner lands ~12 hp: an eight-to-ten hit war
 const RAM_SCALE = 0.004; // kinetic ram energy -> weapon-energy units
 const KNOCKBACK = 3.2; // impulse spectacle multiplier
 const HIT_COOLDOWN = 1.4; // seconds of push-only contact after an exchange

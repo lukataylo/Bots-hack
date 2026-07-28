@@ -309,26 +309,17 @@ select {
 
 /* Real wiki photos ship on white; frame them as deliberate scouting-file cards
    instead of raw cutouts floating on the dark plate. */
-.fighter-art[src^="http"] {
-  background: #f4f2ec;
-  border-radius: 8px;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
-  transform: rotate(-1.5deg);
+.show-rig-photo {
+  position: absolute;
+  right: 10px;
+  bottom: 44px;
+  width: 120px;
+  height: 90px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
 }
 
-.fighter-card-b .fighter-art[src^="http"] {
-  transform: rotate(1.5deg);
-}
-
-.show-fighter-photo[src^="http"] {
-  background: #f4f2ec;
-  border-radius: 10px;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
-}
+.show-rig-cell { position: relative; }
 
 .fighter-info {
   flex: 1;

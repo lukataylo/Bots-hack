@@ -27,7 +27,7 @@ export default function LukaFight({ matchup }: { matchup: Matchup }) {
     for (let i = 0; i < 16; i += 1) {
       const r = simulateBout(specA, specB, (base + i * 0x9e3779b9) >>> 0, true);
       const dur = r.durationSec;
-      const durScore = dur >= 15 && dur <= 75 ? 100 : dur < 15 ? dur * 4 : 100 - (dur - 75);
+      const durScore = dur >= 25 && dur <= 80 ? 100 : dur < 25 ? dur * 3 : 100 - (dur - 80);
       const score = durScore + r.hits.length;
       if (score > bestScore) { bestScore = score; best = r; }
     }
@@ -50,7 +50,7 @@ export default function LukaFight({ matchup }: { matchup: Matchup }) {
 
   return (
     <div className="luka-fight">
-      <FightScene recording={recording} playing runKey={runKey} onTick={onTick} onEnd={onEnd} />
+      <FightScene recording={recording} colorA={matchup.fighterA.palette?.primary} colorB={matchup.fighterB.palette?.primary} playing runKey={runKey} onTick={onTick} onEnd={onEnd} />
       <div className="luka-hud">
         <div className="luka-hp luka-hp-a">
           <span className="luka-hp-name display">{matchup.fighterA.name}</span>

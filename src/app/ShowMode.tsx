@@ -7,6 +7,8 @@ import CountUp from "react-countup";
 import type { FighterProfile, Matchup, SettlementResult, TraceStep } from "@/lib/types";
 import type { MarqueeScript } from "@/three/types";
 
+const photoSrc = (url: string | null | undefined, fallback: string) => url ? `/api/photo?u=${encodeURIComponent(url)}` : fallback;
+
 const LukaFight = dynamic(() => import("./LukaFight"), { ssr: false });
 const BotAssembly = dynamic(() => import("@/three").then((m) => m.BotAssembly), { ssr: false });
 const Canvas = dynamic(() => import("@react-three/fiber").then((m) => m.Canvas), { ssr: false });
@@ -215,9 +217,12 @@ export default function ShowMode(props: ShowModeProps) {
                 <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
                   <ambientLight intensity={0.7} />
                   <directionalLight position={[2, 4, 3]} intensity={1.2} />
-                  <BotAssembly profile={placeholderProfile(fighterAName)} accent="#3D7BFF" assembling />
+                  <BotAssembly profile={matchup?.fighterA ?? placeholderProfile(fighterAName)} accent="#3D7BFF" assembling />
                 </Canvas>
               </div>
+              {matchup?.fighterA.photo_url && (
+                <img className="show-rig-photo" src={photoSrc(matchup.fighterA.photo_url, "/assets/bot-blue.png")} alt="" />
+              )}
               <div className="show-rig-name display side-a-text">{fighterAName || "FIGHTER A"}</div>
             </div>
             <div className="show-rig-cell">
@@ -225,9 +230,12 @@ export default function ShowMode(props: ShowModeProps) {
                 <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
                   <ambientLight intensity={0.7} />
                   <directionalLight position={[2, 4, 3]} intensity={1.2} />
-                  <BotAssembly profile={placeholderProfile(fighterBName)} accent="#9B4DFF" assembling />
+                  <BotAssembly profile={matchup?.fighterB ?? placeholderProfile(fighterBName)} accent="#9B4DFF" assembling />
                 </Canvas>
               </div>
+              {matchup?.fighterB.photo_url && (
+                <img className="show-rig-photo" src={photoSrc(matchup.fighterB.photo_url, "/assets/bot-purple.png")} alt="" />
+              )}
               <div className="show-rig-name display side-b-text">{fighterBName || "FIGHTER B"}</div>
             </div>
           </div>
@@ -257,7 +265,7 @@ export default function ShowMode(props: ShowModeProps) {
             <div className="show-odds-row">
               <div className="show-odds-side">
                 <img
-                  src={matchup.fighterA.photo_url || "/assets/bot-blue.png"}
+                  src={photoSrc(matchup.fighterA.photo_url, "/assets/bot-blue.png")}
                   alt=""
                   className="show-fighter-photo"
                 />
@@ -274,7 +282,7 @@ export default function ShowMode(props: ShowModeProps) {
               </div>
               <div className="show-odds-side">
                 <img
-                  src={matchup.fighterB.photo_url || "/assets/bot-purple.png"}
+                  src={photoSrc(matchup.fighterB.photo_url, "/assets/bot-purple.png")}
                   alt=""
                   className="show-fighter-photo"
                 />

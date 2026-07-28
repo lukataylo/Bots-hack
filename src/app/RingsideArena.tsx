@@ -31,6 +31,8 @@ interface MatchupResponse {
   accuracyTally: { correct: number; total: number };
 }
 
+const photoSrc = (url: string | null | undefined, fallback: string) => url ? `/api/photo?u=${encodeURIComponent(url)}` : fallback;
+
 const KIND_CLASS: Record<TraceStep["kind"], string> = {
   resolve: "k-resolve",
   scrape: "k-scrape",
@@ -352,7 +354,7 @@ export default function RingsideArena() {
       <section className="fighter-row">
         <div className="plate plate-blue fighter-card">
           <img
-            src={matchup?.fighterA.photo_url || "/assets/bot-blue.png"}
+            src={photoSrc(matchup?.fighterA.photo_url, "/assets/bot-blue.png")}
             alt=""
             className="fighter-art"
           />
@@ -412,7 +414,7 @@ export default function RingsideArena() {
 
         <div className="plate plate-purple fighter-card fighter-card-b">
           <img
-            src={matchup?.fighterB.photo_url || "/assets/bot-purple.png"}
+            src={photoSrc(matchup?.fighterB.photo_url, "/assets/bot-purple.png")}
             alt=""
             className="fighter-art"
           />
