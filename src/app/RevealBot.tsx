@@ -10,7 +10,8 @@ import { specFor, type BotFrame } from "@/luka/sim";
 import { Bot } from "@/luka/Bot";
 
 function Turntable({ profile, color, glow }: { profile: FighterProfile; color: string; glow: string }) {
-  const spec = useMemo(() => specFor(profile), [profile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const spec = useMemo(() => specFor(profile), [profile.name, profile.weapon_class, profile.wins, profile.losses]);
   const frame = useRef<BotFrame>({ x: 0, z: 0, heading: 0, charge: 0, hpFrac: 1 });
 
   useFrame((state) => {

@@ -103,6 +103,23 @@ export default function RingsideArena() {
 
   const traceLogRef = useRef<HTMLDivElement | null>(null);
 
+  // Preload the 3D renderer chunks at idle and the wiki photo cutouts the moment a
+  // matchup posts, so no stage ever shows a loading gap mid-show.
+  useEffect(() => {
+    void import("./LukaFight");
+    void import("./RevealBot");
+  }, []);
+  useEffect(() => {
+    if (!matchup) return;
+    for (const u of [matchup.fighterA.photo_url, matchup.fighterB.photo_url]) {
+      if (u) {
+        const img = new window.Image();
+        img.src = photoSrc(u, "");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchup?.id]);
+
   // Splash screen over the centre stage until the operator starts the show.
   const [splashAway, setSplashAway] = useState(false);
   const [splashGone, setSplashGone] = useState(false);

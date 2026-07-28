@@ -32,7 +32,8 @@ export default function LukaFight({ matchup }: { matchup: Matchup }) {
       if (score > bestScore) { bestScore = score; best = r; }
     }
     return best;
-  }, [matchup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchup.id]);
   const [tick, setTick] = useState<Tick | null>(null);
   const [ended, setEnded] = useState(false);
   const [runKey, setRunKey] = useState(0);
