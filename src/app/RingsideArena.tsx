@@ -103,6 +103,10 @@ export default function RingsideArena() {
 
   const traceLogRef = useRef<HTMLDivElement | null>(null);
 
+  // Splash screen over the centre stage until the operator starts the show.
+  const [splashAway, setSplashAway] = useState(false);
+  const [splashGone, setSplashGone] = useState(false);
+
   const [showMode, setShowMode] = useState(() => (typeof window !== "undefined" ? window.location.hash === "#show" : false));
 
   useEffect(() => {
@@ -474,6 +478,25 @@ export default function RingsideArena() {
               <LukaFight matchup={matchup} />
             ) : (
               <MarqueePlaceholder label="AWAITING MATCHUP" />
+            )}
+
+            {!matchup && !splashGone && (
+              <div
+                className={`splash ${splashAway ? "splash-away" : ""}`}
+                onTransitionEnd={() => splashAway && setSplashGone(true)}
+              >
+                <img className="splash-wordmark" src="/assets/wordmark.png" alt="RINGSIDE ARENA" />
+                <button
+                  type="button"
+                  className="splash-start display"
+                  onClick={() => {
+                    setSplashAway(true);
+                    setTimeout(() => (document.querySelector(".entry-input") as HTMLInputElement | null)?.focus(), 750);
+                  }}
+                >
+                  START BATTLE
+                </button>
+              </div>
             )}
 
             <div className="stage-overlay">
