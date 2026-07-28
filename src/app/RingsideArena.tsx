@@ -333,7 +333,7 @@ export default function RingsideArena() {
     <div className="arena">
       <header className="arena-header">
         <div className="wordmark display">
-          <img src="/assets/icon-gold.png" alt="" className="wordmark-logo" />
+          <img src="/assets/logo.png" alt="" className="wordmark-logo" />
           RINGSIDE ARENA
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>

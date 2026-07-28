@@ -28,20 +28,20 @@ export default function RevealBot({ profile, accent }: { profile: FighterProfile
     <Canvas
       shadows
       dpr={[1, 1.5]}
-      camera={{ position: [1.9, 1.5, 2.6], fov: 38 }}
+      camera={{ position: [1.5, 0.95, 1.9], fov: 36 }}
       gl={{ antialias: true }}
       onCreated={({ gl, scene, camera }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         scene.background = new THREE.Color("#0d0716");
-        camera.lookAt(0, 0.25, 0);
+        camera.lookAt(0, 0.22, 0);
       }}
     >
       <ambientLight intensity={0.55} />
-      <directionalLight position={[3, 6, 4]} intensity={1.6} castShadow />
+      <directionalLight position={[3, 6, 4]} intensity={2.0} castShadow />
       <pointLight position={[-2.5, 1.2, -1.5]} color={accent} intensity={0.7} distance={8} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <circleGeometry args={[2.2, 48]} />
-        <meshStandardMaterial color="#181028" metalness={0.4} roughness={0.7} />
+        <circleGeometry args={[1.15, 48]} />
+        <meshStandardMaterial color="#0c0817" metalness={0.05} roughness={0.95} />
       </mesh>
       <Turntable profile={profile} color={color} glow={accent} />
     </Canvas>

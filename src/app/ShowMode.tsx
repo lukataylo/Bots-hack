@@ -181,7 +181,7 @@ export default function ShowMode(props: ShowModeProps) {
     <div className="show-stage">
       <div className="show-topbar">
         <span className="show-brand">
-          <img src="/assets/icon-gold.png" alt="" className="show-brand-logo" />
+          <img src="/assets/logo.png" alt="" className="show-brand-logo" />
           RINGSIDE ARENA
         </span>
         <div className="show-dots">
