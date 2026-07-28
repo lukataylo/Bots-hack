@@ -643,7 +643,7 @@ export default function RingsideArena() {
           <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
             {betUrl && (
               <div className="qr-wrap">
-                <QRCodeSVG value={betUrl} size={96} />
+                <QRCodeSVG value={betUrl} size={96} fgColor="#120b22" bgColor="#F5B426" />
               </div>
             )}
             <div style={{ flex: 1 }}>

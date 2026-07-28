@@ -309,7 +309,7 @@ export default function ShowMode(props: ShowModeProps) {
           {!linesClosed ? (
             <>
               <div className="plate plate-gold-solid show-qr-wrap">
-                <QRCodeSVG value={betUrl || "https://ringside.arena"} size={360} className="show-qr" />
+                <div className="show-qr-wrap"><QRCodeSVG value={betUrl || "https://ringside.arena"} size={360} className="show-qr" fgColor="#120b22" bgColor="#F5B426" /></div>
               </div>
               <div className="show-crowd-bar">
                 <div className="show-crowd-a" style={{ width: `${pctA}%` }} />
