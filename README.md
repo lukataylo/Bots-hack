@@ -1,3 +1,5 @@
+![RINGSIDE ARENA](public/Banner.png)
+
 # RINGSIDE ARENA
 
 Name any two BattleBots. It scrapes them into existence, fights the fight 1,000 times in
