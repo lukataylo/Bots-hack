@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Chakra_Petch } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-// Display face for the arena chrome: wordmark, panel titles, odds numerals.
-// Squared and technical, so it sits with the painted metal frames.
-const display = Chakra_Petch({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
 
 const geist = Geist({
   variable: "--font-sans",
@@ -33,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable} ${display.variable}`}>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body>{children}</body>
     </html>
   );

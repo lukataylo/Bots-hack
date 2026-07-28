@@ -34,6 +34,10 @@ export interface FighterProfile {
   ko_wins: number;
   failure_pattern: string | null;
   source_urls: string[];
+  /** Real bot photo scraped from the wiki (fandom pageimages), null when unavailable. */
+  photo_url?: string | null;
+  /** Dominant colors extracted from the real photo; paints the 3D rig to match the real bot. */
+  palette?: { primary: string; accent: string } | null;
 }
 
 export interface TraceStep {

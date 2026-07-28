@@ -79,7 +79,7 @@ export default function BetClient({ matchupId }: { matchupId: string }) {
   if (phase === "not-found") {
     return (
       <div className="bet-wrap">
-        <p className="mono" style={{ color: "var(--rosso)" }}>No matchup found. Ask the ring for a fresh QR code.</p>
+        <p className="mono" style={{ color: "var(--alert)" }}>No matchup found. Ask the ring for a fresh QR code.</p>
       </div>
     );
   }
@@ -87,13 +87,13 @@ export default function BetClient({ matchupId }: { matchupId: string }) {
   if (phase === "closed") {
     return (
       <div className="bet-wrap">
-        <div className="wordmark" style={{ justifyContent: "center" }}>
-          <span className="dot" />
+        <div className="wordmark display" style={{ justifyContent: "center" }}>
+          <img src="/assets/icon-gold.png" alt="" className="wordmark-logo" />
           RINGSIDE ARENA
         </div>
-        <h1 className="mono" style={{ color: "var(--rosso)", fontSize: 22, letterSpacing: "0.04em" }}>
+        <div className="plate plate-red-solid display bet-lines-closed-plate" style={{ fontSize: 22, letterSpacing: "0.04em" }}>
           LINES CLOSED
-        </h1>
+        </div>
         {matchup && (
           <p style={{ color: "var(--text-dim)" }}>
             {matchup.fighterA.name} vs {matchup.fighterB.name}
@@ -106,11 +106,12 @@ export default function BetClient({ matchupId }: { matchupId: string }) {
   if (phase === "confirmed") {
     return (
       <div className="bet-wrap">
-        <div className="wordmark" style={{ justifyContent: "center" }}>
-          <span className="dot" />
+        <div className="wordmark display" style={{ justifyContent: "center" }}>
+          <img src="/assets/icon-gold.png" alt="" className="wordmark-logo" />
           RINGSIDE ARENA
         </div>
-        <h1 style={{ color: side === "A" ? "var(--side-a)" : "var(--side-b)", fontSize: 26 }}>
+        <img src={side === "A" ? "/assets/bot-blue.png" : "/assets/bot-purple.png"} alt="" className="bet-fighter-art" />
+        <h1 className="display" style={{ color: side === "A" ? "var(--side-a)" : "var(--side-b)", fontSize: 26 }}>
           Bet placed on side {side}
         </h1>
         <p style={{ color: "var(--text-dim)" }}>{nickname}, 100 points down. Watch the big screen for the line.</p>
@@ -120,8 +121,8 @@ export default function BetClient({ matchupId }: { matchupId: string }) {
 
   return (
     <div className="bet-wrap">
-      <div className="wordmark" style={{ justifyContent: "center" }}>
-        <span className="dot" />
+      <div className="wordmark display" style={{ justifyContent: "center" }}>
+        <img src="/assets/icon-gold.png" alt="" className="wordmark-logo" />
         RINGSIDE ARENA
       </div>
       {matchup && (
@@ -140,21 +141,23 @@ export default function BetClient({ matchupId }: { matchupId: string }) {
         maxLength={40}
       />
       <button
-        className="bet-side-btn btn-a"
+        className="plate plate-blue bet-side-btn bet-plate-a display"
         onClick={() => placeBet("A")}
         disabled={!nickname.trim() || phase === "submitting"}
       >
-        {matchup?.fighterA.name ?? "SIDE A"}
+        <img src="/assets/bot-blue.png" alt="" className="bet-fighter-art" style={{ height: 90, marginBottom: 8 }} />
+        <div>{matchup?.fighterA.name ?? "SIDE A"}</div>
       </button>
       <button
-        className="bet-side-btn btn-b"
+        className="plate plate-purple bet-side-btn bet-plate-b display"
         onClick={() => placeBet("B")}
         disabled={!nickname.trim() || phase === "submitting"}
       >
-        {matchup?.fighterB.name ?? "SIDE B"}
+        <img src="/assets/bot-purple.png" alt="" className="bet-fighter-art" style={{ height: 90, marginBottom: 8 }} />
+        <div>{matchup?.fighterB.name ?? "SIDE B"}</div>
       </button>
       {error && (
-        <p className="mono" style={{ color: "var(--rosso)", fontSize: 12 }}>
+        <p className="mono" style={{ color: "var(--alert)", fontSize: 12 }}>
           {error}
         </p>
       )}

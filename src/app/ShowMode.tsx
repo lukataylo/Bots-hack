@@ -20,6 +20,14 @@ const KIND_CLASS: Record<TraceStep["kind"], string> = {
   error: "k-error",
 };
 
+function traceTime(at: string): string {
+  try {
+    return new Date(at).toLocaleTimeString([], { hour12: false });
+  } catch {
+    return "";
+  }
+}
+
 const STAGES = ["input", "scrape", "fight", "bet", "grade"] as const;
 export type ShowStage = (typeof STAGES)[number];
 
@@ -157,7 +165,10 @@ export default function ShowMode(props: ShowModeProps) {
   return (
     <div className="show-stage">
       <div className="show-topbar">
-        <span className="show-brand">RINGSIDE ARENA</span>
+        <span className="show-brand">
+          <img src="/assets/icon-gold.png" alt="" className="show-brand-logo" />
+          RINGSIDE ARENA
+        </span>
         <div className="show-dots">
           {STAGES.map((s, i) => (
             <span key={s} className={`show-dot ${i === stageIndex ? "show-dot-active" : ""}`} />
@@ -173,23 +184,23 @@ export default function ShowMode(props: ShowModeProps) {
           <div className="show-kicker">SCOUT THE MATCHUP</div>
           <div className="show-entry-row">
             <input
-              className="show-input show-input-a"
+              className="show-input show-input-a display"
               placeholder="FIGHTER A"
               value={fighterAName}
               onChange={(e) => setFighterAName(e.target.value)}
               disabled={busy}
             />
-            <div className="show-vs">VS</div>
+            <img src="/assets/vs-badge.png" alt="VS" className="show-vs-badge" />
             <input
-              className="show-input show-input-b"
+              className="show-input show-input-b display"
               placeholder="FIGHTER B"
               value={fighterBName}
               onChange={(e) => setFighterBName(e.target.value)}
               disabled={busy}
             />
           </div>
-          <button className="show-go-btn" onClick={handleGo} disabled={busy}>
-            {busy ? "SCOUTING..." : "GO"}
+          <button className="plate plate-gold-solid display show-go-btn" onClick={handleGo} disabled={busy}>
+            {busy ? "SCOUTING..." : "RUN MATCHUP"}
           </button>
           {scoutError && <p className="show-error mono">{scoutError}</p>}
         </div>
@@ -200,30 +211,31 @@ export default function ShowMode(props: ShowModeProps) {
           <div className="show-kicker">THE SCRAPE BECOMES A BODY</div>
           <div className="show-rig-row">
             <div className="show-rig-cell">
-              <div className="show-rig-canvas">
+              <div className="plate plate-blue show-rig-canvas">
                 <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
                   <ambientLight intensity={0.7} />
                   <directionalLight position={[2, 4, 3]} intensity={1.2} />
-                  <BotAssembly profile={placeholderProfile(fighterAName)} accent="#0ECB81" assembling />
+                  <BotAssembly profile={placeholderProfile(fighterAName)} accent="#3D7BFF" assembling />
                 </Canvas>
               </div>
-              <div className="show-rig-name side-a-text">{fighterAName || "FIGHTER A"}</div>
+              <div className="show-rig-name display side-a-text">{fighterAName || "FIGHTER A"}</div>
             </div>
             <div className="show-rig-cell">
-              <div className="show-rig-canvas">
+              <div className="plate plate-purple show-rig-canvas">
                 <Canvas camera={{ position: [0, 1.6, 3.4], fov: 40 }}>
                   <ambientLight intensity={0.7} />
                   <directionalLight position={[2, 4, 3]} intensity={1.2} />
-                  <BotAssembly profile={placeholderProfile(fighterBName)} accent="#F6465D" assembling />
+                  <BotAssembly profile={placeholderProfile(fighterBName)} accent="#9B4DFF" assembling />
                 </Canvas>
               </div>
-              <div className="show-rig-name side-b-text">{fighterBName || "FIGHTER B"}</div>
+              <div className="show-rig-name display side-b-text">{fighterBName || "FIGHTER B"}</div>
             </div>
           </div>
           <div className="show-trace-log mono" ref={traceLogRef}>
             {trace.length === 0 && <span style={{ color: "var(--text-dim)" }}>Awaiting scouting run...</span>}
             {trace.map((t) => (
               <div key={t.id} className="show-trace-line">
+                {t.at && <span className="trace-time mono">{traceTime(t.at)}</span>}
                 <span className={`trace-kind ${KIND_CLASS[t.kind]}`}>{t.kind}</span>
                 <span>
                   {t.label}
@@ -248,7 +260,12 @@ export default function ShowMode(props: ShowModeProps) {
           {odds && !odds.abstain && (
             <div className="show-odds-row">
               <div className="show-odds-side">
-                <div className="show-odds-name side-a-text">{matchup.fighterA.name}</div>
+                <img
+                  src={matchup.fighterA.photo_url || "/assets/bot-blue.png"}
+                  alt=""
+                  className="show-fighter-photo"
+                />
+                <div className="show-odds-name display side-a-text">{matchup.fighterA.name}</div>
                 <div className="show-odds-pct num side-a-text">{(odds.winProbA * 100).toFixed(1)}%</div>
               </div>
               <div className="show-odds-arith mono">
@@ -260,12 +277,25 @@ export default function ShowMode(props: ShowModeProps) {
                 </div>
               </div>
               <div className="show-odds-side">
-                <div className="show-odds-name side-b-text">{matchup.fighterB.name}</div>
+                <img
+                  src={matchup.fighterB.photo_url || "/assets/bot-purple.png"}
+                  alt=""
+                  className="show-fighter-photo"
+                />
+                <div className="show-odds-name display side-b-text">{matchup.fighterB.name}</div>
                 <div className="show-odds-pct num side-b-text">{(odds.winProbB * 100).toFixed(1)}%</div>
               </div>
             </div>
           )}
-          {odds && odds.abstain && <div className="abstain-banner show-abstain">INSUFFICIENT EVIDENCE, no line posted</div>}
+          {odds && odds.abstain && (
+            <div className="plate plate-gold-solid abstain-plate show-abstain">
+              <img src="/assets/icon-gold.png" alt="" className="abstain-icon" />
+              <div>
+                <div className="abstain-title display">Insufficient evidence</div>
+                <div className="abstain-sub">no line posted</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -274,7 +304,7 @@ export default function ShowMode(props: ShowModeProps) {
           <div className="show-kicker">THE ROOM BETS</div>
           {!linesClosed ? (
             <>
-              <div className="show-qr-wrap">
+              <div className="plate plate-gold-solid show-qr-wrap">
                 <QRCodeSVG value={betUrl || "https://ringside.arena"} size={360} className="show-qr" />
               </div>
               <div className="show-crowd-bar">
@@ -285,7 +315,7 @@ export default function ShowMode(props: ShowModeProps) {
                 <span className="side-a-text">{matchup.fighterA.name} {pctA}%</span>
                 <span className="side-b-text">{pctB}% {matchup.fighterB.name}</span>
               </div>
-              <button className="show-lock-btn" onClick={handleLock}>
+              <button className="plate plate-red-solid display show-lock-btn" onClick={handleLock}>
                 LOCK LINES
               </button>
               {operatorMsg && <p className="show-error mono">{operatorMsg}</p>}
