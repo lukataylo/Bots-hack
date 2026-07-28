@@ -746,9 +746,13 @@ select {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--border);
+  background-color: #120b22;
   background-image: url("/assets/arena-empty.png");
-  background-size: cover;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
+  height: 420px;
+  max-height: 46vh;
 }
 
 .physics-canvas-wrap.is-running {
