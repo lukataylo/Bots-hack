@@ -1136,8 +1136,8 @@ select {
   border: 2px solid var(--border);
 }
 
-.show-input-a { border-color: var(--side-a); color: var(--side-a); }
-.show-input-b { border-color: var(--side-b); color: var(--side-b); }
+.show-input-a { border-color: var(--side-a); color: #ffffff; }
+.show-input-b { border-color: var(--side-b); color: #ffffff; }
 
 .show-vs {
   font-size: 2vw;
@@ -1163,7 +1163,8 @@ select {
   border-radius: 12px;
   border: none;
   cursor: pointer;
-  color: #241505;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 
 .show-go-btn:disabled {
