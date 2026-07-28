@@ -130,8 +130,8 @@ function Replay({ recording, colorA, colorB, playing, runKey, onTick, onEnd }: R
 
   return (
     <>
-      <Bot spec={specA} color={colorA ?? CORNER_A} stateRef={a} />
-      <Bot spec={specB} color={colorB ?? CORNER_B} stateRef={b} />
+      <Bot spec={specA} color={colorA ?? CORNER_A} glow={CORNER_A} stateRef={a} />
+      <Bot spec={specB} color={colorB ?? CORNER_B} glow={CORNER_B} stateRef={b} />
       <pointLight ref={flash} color="#ffc98a" intensity={0} distance={9} />
       <Sparks ref={sparks} />
     </>
@@ -157,8 +157,8 @@ const camWant = new THREE.Vector3();
 function cameraWork(cam: THREE.Camera, a: BotFrame, b: BotFrame, slow: boolean, shake: number, dt: number) {
   const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
   const spread = Math.hypot(a.x - b.x, a.z - b.z);
-  const dist = slow ? 6.5 : 9.5 + spread * 0.5;
-  const height = slow ? 3.6 : 6.2 + spread * 0.28;
+  const dist = slow ? 4.6 : 6.4 + spread * 0.45;
+  const height = slow ? 2.6 : 4.0 + spread * 0.24;
 
   camWant.set(mx * 0.62, height, mz * 0.62 + dist);
   cam.position.lerp(camWant, Math.min(1, dt * (slow ? 4.5 : 1.9)));

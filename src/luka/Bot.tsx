@@ -19,11 +19,13 @@ const MAX_SPIN = 42; // rad/s at full charge
 export interface BotProps {
   spec: BotSpec;
   color: string;
+  /** Team accent strip so sides stay readable even when liveries are similar. */
+  glow?: string;
   /** Live playback state, written by the scene each frame. Never triggers React. */
   stateRef: RefObject<BotFrame>;
 }
 
-export function Bot({ spec, color, stateRef }: BotProps) {
+export function Bot({ spec, color, glow, stateRef }: BotProps) {
   const group = useRef<THREE.Group>(null);
   const weapon = useRef<THREE.Group>(null);
   const shell = useRef<THREE.MeshStandardMaterial>(null);
@@ -70,6 +72,13 @@ export function Bot({ spec, color, stateRef }: BotProps) {
         <boxGeometry args={[1.05 * s, 0.3 * s, 1.3 * s]} />
         <meshStandardMaterial ref={shell} color={color} metalness={0.75} roughness={0.42} />
       </mesh>
+
+      {glow && (
+        <mesh position={[0, 0.365 * s, -0.25 * s]}>
+          <boxGeometry args={[0.7 * s, 0.03 * s, 0.5 * s]} />
+          <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={2.2} />
+        </mesh>
+      )}
 
       {/* wedge / ground game plate — the bots that win the floor look like it */}
       {spec.control >= 0.7 && (

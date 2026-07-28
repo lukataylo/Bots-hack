@@ -24,15 +24,15 @@ const DT = 1 / 60;
 const MAX_SEC = 180; // three minute bout
 const HP_PER_KG = 0.8; // heavyweight (113kg) with 1.0 armour => ~90 hp
 const REF_MASS = 113; // heavyweight, kg
-const DMG_SCALE = 0.12; // full-charge big spinner lands ~12 hp: an eight-to-ten hit war
+const DMG_SCALE = 0.09; // full-charge big spinner lands ~12 hp: an eight-to-ten hit war
 const RAM_SCALE = 0.004; // kinetic ram energy -> weapon-energy units
 const KNOCKBACK = 3.2; // impulse spectacle multiplier
-const HIT_COOLDOWN = 1.4; // seconds of push-only contact after an exchange
+const HIT_COOLDOWN = 1.0; // seconds of push-only contact after an exchange
 const PIN_DPS = 1.5; // damage per second while held on the wall by a better wedge
 // ponytail: a flipper's real win condition is throwing you out of the box, which
 // this model has no term for. Its slam damage is scaled up to stand in. Add an
 // out-of-arena outcome if flippers start looking systematically underrated.
-const CATASTROPHE_DIV = 650; // a big hit can still end it outright, but rarely: p = dmg / this
+const CATASTROPHE_DIV = 900; // a big hit can still end it outright, but rarely: p = dmg / this
 
 export interface ArchetypeSpec {
   weaponKE: number; // stored weapon energy at full charge (engine units)
