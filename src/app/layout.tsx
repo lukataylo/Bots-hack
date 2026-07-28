@@ -24,8 +24,8 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Scout",
-  description: "Find the problem, build the wedge, message the founder.",
+  title: "Ringside Arena",
+  description: "A thousand fights before the fight.",
 };
 
 export default function RootLayout({

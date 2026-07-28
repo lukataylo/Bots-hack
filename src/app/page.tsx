@@ -1,126 +1,218 @@
-import Link from "next/link";
-import { listCompanies, calibration, type CompanyRow } from "@/lib/db";
-import RunControls, { RunStatus } from "./RunControls";
-import { Logo } from "./Logo";
+'use client';
 
-export const dynamic = "force-dynamic";
+// RINGSIDE ARENA — big-screen console for the engine and arena zones.
+// Type two fighters, run a thousand fights in physics, watch the representative
+// one. Odds come from the Elo engine over ingested records; with no records it
+// says so and posts nothing.
+//
+// ponytail: fighter stats are typed in here. The DATA zone replaces this form
+// with the live scrape and drops FighterProfile straight into runCard().
 
-// score strength is encoded by ink density (DESIGN.md), not traffic lights
-function tier(s: number | null): string {
-  if (s == null) return "t-none";
-  if (s >= 60) return "score-strong";
-  if (s >= 35) return "score-mid";
-  return "score-weak";
-}
+import { useCallback, useEffect, useState } from 'react';
+import type { BotRecord, FighterProfile, MatchupOdds, WeaponArchetype } from '@/lib/types';
+import { computeOdds } from '@/core/elo';
+import { monteCarlo, type BoutRecording } from '@/core/sim';
+import { FightScene, CORNER_A, CORNER_B, type Tick } from '@/three/FightScene';
 
-export default function Dashboard() {
-  const companies = listCompanies();
-  const pending = companies.filter((c) => c.status === "new").length;
-  // the next target to WORK: analysed or shortlisted, not yet contacted or closed
-  const next = companies.find(
-    (c) => c.brief && c.score != null && ["analyzed", "shortlisted"].includes(c.status),
-  );
-  const cal = calibration();
+const WEAPONS: WeaponArchetype[] = [
+  'horizontal_spinner', 'vertical_spinner', 'drum', 'flipper',
+  'hammer', 'crusher', 'lifter', 'wedge', 'multibot', 'other',
+];
+
+const blank = (name: string, weapon_class: WeaponArchetype): FighterProfile => ({
+  name, weapon_class, weight_kg: 113, wins: 0, losses: 0, ko_wins: 0,
+  failure_pattern: null, source_urls: [],
+});
+
+interface Card { odds: MatchupOdds; winShareA: number; medianSec: number; modal: string; marquee: BoutRecording }
+
+export default function Console() {
+  const [a, setA] = useState(() => blank('Fighter A', 'horizontal_spinner'));
+  const [b, setB] = useState(() => blank('Fighter B', 'flipper'));
+  const [records, setRecords] = useState<BotRecord[] | null>(null);
+  const [card, setCard] = useState<Card | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [runKey, setRunKey] = useState(0);
+  const [hud, setHud] = useState<Tick>({ t: 0, hpA: 1, hpB: 1, hits: 0 });
+
+  useEffect(() => {
+    fetch('/api/records')
+      .then((r) => r.json())
+      .then((d) => setRecords(d.records ?? []))
+      .catch(() => setRecords([]));
+  }, []);
+
+  function runCard() {
+    setBusy(true);
+    // one frame so the button paints its pending state before the sim blocks
+    requestAnimationFrame(() => {
+      const { result, marquee } = monteCarlo(a, b, 1000, 1);
+      setCard({
+        odds: computeOdds(a, b, records ?? []),
+        winShareA: result.winShareA,
+        medianSec: result.medianDurationSec,
+        modal: result.modalOutcome,
+        marquee,
+      });
+      setRunKey((k) => k + 1);
+      setHud({ t: 0, hpA: 1, hpB: 1, hits: 0 });
+      setBusy(false);
+    });
+  }
+
+  const onTick = useCallback((t: Tick) => setHud(t), []);
 
   return (
-    <div className="wrap">
-      <header className="masthead">
-        <div className="masthead-id">
-          <Link href="/" className="wordmark serif">Scout</Link>
-          <div className="dek">The startup review. Find the problem, build the wedge, message the founder.</div>
+    <div className="arena-wrap">
+      <header className="arena-head">
+        <div>
+          <span className="marker">Ringside Arena</span>
+          <h1 className="arena-title serif">A thousand fights before the fight</h1>
         </div>
-        <div className="masthead-tools">
-          <RunControls pendingCount={pending} />
+        <div className="arena-evidence mono">
+          {records === null ? 'loading records' : `${records.length} fight records ingested`}
         </div>
       </header>
 
-      <RunStatus />
+      <div className="corners">
+        <Corner side="A" color={CORNER_A} p={a} onChange={setA} />
+        <button className="btn btn-run" onClick={runCard} disabled={busy}>
+          {busy ? 'Simulating' : 'Run 1,000 fights'}
+        </button>
+        <Corner side="B" color={CORNER_B} p={b} onChange={setB} />
+      </div>
 
-      {next && (
-        <section className="lead rise">
-          <div style={{ minWidth: 0 }}>
-            <span className="marker">Priority target</span>
-            <h1 className="lead-name">
-              <Link href={`/company/${next.id}`}>{next.name}</Link>
-            </h1>
-            <p className="lead-dek">{next.brief?.best_move || next.brief?.summary}</p>
-            <div className="lead-byline">
-              <Logo website={next.website} name={next.name} size={22} />
-              <span className="mono dim" style={{ fontSize: 12 }}>
-                {next.website.replace(/^https?:\/\//, "")}
-              </span>
-              {next.batch && <span className="dim" style={{ fontSize: 12 }}>{next.batch}</span>}
-              {next.brief?.role_fit && <span className="muted" style={{ fontSize: 12 }}>{next.brief.role_fit}</span>}
+      {card && (
+        <>
+          <Line card={card} a={a} />
+
+          <div className="viewport">
+            <FightScene recording={card.marquee} runKey={runKey} onTick={onTick} />
+            <div className="hud">
+              <Bar name={a.name} color={CORNER_A} frac={hud.hpA} align="left" />
+              <div className="hud-mid mono">
+                <span className="hud-clock">{hud.t.toFixed(1)}s</span>
+                <span className="hud-sub">{hud.hits} exchanges</span>
+              </div>
+              <Bar name={b.name} color={CORNER_B} frac={hud.hpB} align="right" />
             </div>
+            <button className="btn btn-replay" onClick={() => setRunKey((k) => k + 1)}>Replay</button>
           </div>
-          <Link href={`/company/${next.id}`} className="scorebox" aria-label={`Open ${next.name}, score ${next.score}`}>
-            <span className={`n ${tier(next.score)}`}>{next.score}</span>
-          </Link>
-        </section>
-      )}
 
-      {cal.good.n + cal.dead.n > 0 && (
-        <div className="statsline">
-          <span className="marker marker-ink">Calibration</span>
-          <span>
-            <span className="k ok">{cal.good.avg != null ? Math.round(cal.good.avg) : "-"}</span> avg score on good
-            outcomes ({cal.good.n})
-          </span>
-          <span>
-            <span className="k bad">{cal.dead.avg != null ? Math.round(cal.dead.avg) : "-"}</span> on dead ({cal.dead.n})
-          </span>
-          <span>
-            <span className="k">{cal.contacted}</span> contacted
-          </span>
-        </div>
-      )}
-
-      {companies.length === 0 ? (
-        <div className="empty">
-          <p>No targets yet. Pull twelve fresh YC companies, then run the analysis.</p>
-        </div>
-      ) : (
-        <section className="board" aria-label="Ranked targets">
-          <div className="board-head">
-            <span>No.</span>
-            <span>Company</span>
-            <span className="hd-fit">Role fit</span>
-            <span className="hd-st">Status</span>
-            <span style={{ textAlign: "right" }}>Score</span>
-          </div>
-          {companies.map((c, i) => (
-            <Row key={c.id} c={c} rank={i + 1} delay={i < 10 ? i * 35 : 0} />
-          ))}
-        </section>
+          <section className="trace">
+            <span className="marker marker-ink">The arithmetic</span>
+            <ol className="mono">
+              {card.odds.arithmeticTrace.map((l) => <li key={l}>{l}</li>)}
+              <li>
+                monte carlo: 1,000 seeded bouts, {(card.winShareA * 100).toFixed(1)}% to {a.name},
+                {' '}modal outcome {card.modal}, median {card.medianSec}s
+              </li>
+              <li>
+                marquee bout: seed {card.marquee.seed}, {card.marquee.winner} by {card.marquee.method}
+                {' '}in {card.marquee.durationSec}s
+              </li>
+            </ol>
+            <p className="muted">{card.odds.weighting}</p>
+          </section>
+        </>
       )}
     </div>
   );
 }
 
-function Row({ c, rank, delay }: { c: CompanyRow; rank: number; delay: number }) {
-  const sub = c.brief?.problems?.[0]?.problem || c.one_liner || "";
-  const failed = c.status === "new" && c.last_error;
+function Line({ card, a }: { card: Card; a: FighterProfile }) {
+  if (card.odds.abstain) {
+    return (
+      <section className="line line-abstain">
+        <span className="marker">No line posted</span>
+        <p className="serif line-abstain-copy">{card.odds.abstainReason}</p>
+        <p className="muted">
+          The simulation still ran. It reports {(card.winShareA * 100).toFixed(1)}% for {a.name},
+          but that is physics with no evidence behind it, so nothing is priced and no bets stand.
+        </p>
+      </section>
+    );
+  }
+  const [lo, hi] = card.odds.confidenceInterval;
   return (
-    <Link href={`/company/${c.id}`} className="row rise" style={{ animationDelay: `${delay}ms` }}>
-      <span className="rk">{String(rank).padStart(2, "0")}</span>
-      <div className="co">
-        <Logo website={c.website} name={c.name} size={30} />
-        <div style={{ minWidth: 0 }}>
-          <div className="co-name">{c.name}</div>
-          <div className="co-sub">{sub}</div>
+    <section className="line">
+      <Price name={card.marquee.specA.name} p={card.odds.winProbA} n={card.odds.sampleCountA} color={CORNER_A} />
+      <div className="line-mid">
+        <span className="marker marker-ink">The line</span>
+        <div className="mono line-ci">95% {(lo * 100).toFixed(0)} to {(hi * 100).toFixed(0)}</div>
+        <div className="mono line-sim">
+          sim {(card.winShareA * 100).toFixed(1)} / {((1 - card.winShareA) * 100).toFixed(1)}
         </div>
       </div>
-      <span className="fit" title={c.brief?.role_fit || undefined}>
-        {c.brief?.role_fit || (c.batch ?? "")}
-      </span>
-      <span className="stcell">
-        {failed ? (
-          <span className="st st-failed" title={c.last_error ?? undefined}>failed, retry</span>
-        ) : (
-          <span className={`st st-${c.status}`}>{c.status.replace("_", " ")}</span>
-        )}
-      </span>
-      <span className={`opp ${c.score == null ? "t-none" : tier(c.score)}`}>{c.score ?? "--"}</span>
-    </Link>
+      <Price name={card.marquee.specB.name} p={card.odds.winProbB} n={card.odds.sampleCountB} color={CORNER_B} />
+    </section>
+  );
+}
+
+function Price({ name, p, n, color }: { name: string; p: number; n: number; color: string }) {
+  return (
+    <div className="price">
+      <div className="price-name" style={{ borderColor: color }}>{name}</div>
+      <div className="price-n serif">{(p * 100).toFixed(0)}</div>
+      <div className="mono dim">{(1 / Math.max(0.01, p)).toFixed(2)} dec, n={n}</div>
+    </div>
+  );
+}
+
+function Corner({ side, color, p, onChange }: {
+  side: 'A' | 'B'; color: string; p: FighterProfile; onChange: (p: FighterProfile) => void;
+}) {
+  const set = <K extends keyof FighterProfile>(k: K, v: FighterProfile[K]) => onChange({ ...p, [k]: v });
+  return (
+    <div className="corner" style={{ borderTopColor: color }}>
+      <label className="corner-side mono" style={{ color }}>Corner {side}</label>
+      <input
+        className="in in-name"
+        value={p.name}
+        aria-label={`Corner ${side} name`}
+        onChange={(e) => set('name', e.target.value)}
+      />
+      <select
+        className="in"
+        value={p.weapon_class}
+        aria-label={`Corner ${side} weapon`}
+        onChange={(e) => set('weapon_class', e.target.value as WeaponArchetype)}
+      >
+        {WEAPONS.map((w) => <option key={w} value={w}>{w.replace(/_/g, ' ')}</option>)}
+      </select>
+      <div className="corner-nums">
+        <Num label="kg" v={p.weight_kg ?? 113} on={(v) => set('weight_kg', v)} />
+        <Num label="W" v={p.wins} on={(v) => set('wins', v)} />
+        <Num label="L" v={p.losses} on={(v) => set('losses', v)} />
+        {/* ko wins can never exceed wins, or the damage multiplier goes fictional */}
+        <Num label="KO" v={p.ko_wins} on={(v) => set('ko_wins', Math.min(v, p.wins))} />
+      </div>
+    </div>
+  );
+}
+
+function Num({ label, v, on }: { label: string; v: number; on: (v: number) => void }) {
+  return (
+    <label className="num">
+      <span className="mono dim">{label}</span>
+      <input
+        className="in in-num mono"
+        type="number"
+        min={0}
+        value={v}
+        onChange={(e) => on(Math.max(0, Number(e.target.value) || 0))}
+      />
+    </label>
+  );
+}
+
+function Bar({ name, color, frac, align }: { name: string; color: string; frac: number; align: 'left' | 'right' }) {
+  return (
+    <div className={`hpwrap hp-${align}`}>
+      <div className="hpname mono">{name}</div>
+      <div className="hptrack">
+        <i style={{ width: `${Math.max(0, frac) * 100}%`, background: color }} />
+      </div>
+    </div>
   );
 }
